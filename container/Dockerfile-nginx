@@ -1,0 +1,7 @@
+FROM nginx:1.17.4-alpine
+
+RUN rm /etc/nginx/conf.d/default.conf
+COPY ./config/nginx/nginx.conf /etc/nginx/conf.d
+COPY ./config/nginx/ssl/ssl-domain.com.conf /etc/nginx/ssl-domain.com.conf
+COPY ./config/nginx/ssl/ssl-params.conf /etc/nginx/ssl-params.conf
+COPY ./certs/* /etc/nginx/certs/

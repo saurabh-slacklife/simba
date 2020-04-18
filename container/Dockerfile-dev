@@ -1,0 +1,42 @@
+## Author Saurabh Saxena
+
+FROM python:3.8.2-alpine3.11
+
+LABEL maintainer="saurabh.salcklife.io@gmail.com"
+LABEL vendor="Simba"
+
+RUN apk --no-cache add \
+     bash \
+     build-base \
+     gcc
+
+# set environment variables
+ENV SERVICE_ENV=""
+ENV APP_HOME=/usr/src/app/
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+# SET Python specific ENV vars
+ENV PYTHONFAULTHANDLER=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONHASHSEED=random \
+  PIPENV_HIDE_EMOJIS=true \
+  PIPENV_COLORBLIND=true \
+  PIPENV_NOSPIN=true
+
+RUN mkdir -p ${APP_HOME} /var/log/simba
+
+# set work directory
+WORKDIR ${APP_HOME}
+
+COPY Pipfile .
+
+RUN pip install --upgrade pip \
+	&& pip install pipenv \
+	&& pipenv install \
+	&& pipenv install --deploy --system --ignore-pipfile
+
+COPY . .
+
+EXPOSE 5000
+
+ENTRYPOINT scripts/start.sh ${SERVICE_ENV}

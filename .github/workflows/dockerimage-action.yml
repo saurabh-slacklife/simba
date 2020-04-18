@@ -1,0 +1,15 @@
+name: Docker Build
+
+on:
+  push:
+    branches:
+      - master
+      - feature/*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Build the Docker image
+      run: docker build . --file container/Dockerfile-dev --tag simba:$(date +%s)
