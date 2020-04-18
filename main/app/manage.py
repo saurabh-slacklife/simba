@@ -3,7 +3,7 @@ import os
 
 from flask import Flask
 
-from main.app.config.Config import BaseConfig, ConfigType
+from main.app.config.Config import ConfigType
 from main.app.routes import user
 
 
