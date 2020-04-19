@@ -1,3 +1,5 @@
-from main.app.manage import create_app
+from main.app.manage import ManageApp
 
-flask_app = create_app()
+manage_app = ManageApp()
+
+simba_flask_app = manage_app.get_simba_app

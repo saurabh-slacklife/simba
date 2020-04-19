@@ -1,5 +1,7 @@
 from flask import Blueprint
 
+from main.app.extensions.dependency_extensions import user_service
+
 user_bp = Blueprint("User", __name__)
 
 
@@ -10,4 +12,4 @@ def create_user():
 
 @user_bp.route("/", methods=['GET'])
 def get_user():
-    return "Hello User"
+    return user_service.read()
