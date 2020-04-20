@@ -12,11 +12,11 @@ if [[ -n ${1} ]]; then
   touch /var/log/simba/application.log
   touch /var/log/simba/error.log
   exec gunicorn --bind "0.0.0.0:5000" main.app:simba_flask_app \
-        --disable-redirect-access-to-syslog \
-        --capture-output \
-        --log-file /var/log/simba/application.log \
-        --access-logfile /var/log/simba/access.log \
-        --log-level info
+    --disable-redirect-access-to-syslog \
+    --capture-output \
+    --log-file /var/log/simba/application.log \
+    --access-logfile /var/log/simba/access.log \
+    --log-level info
 else
   echo "#############################################"
   echo "Service Env not specified process will exit"
@@ -24,6 +24,3 @@ else
   echo "#############################################"
   exit 1
 fi
-
-
-

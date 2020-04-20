@@ -5,6 +5,8 @@ from flask import Flask
 from main.app.client.redis_client import RedisClient
 from main.app.config.config import ConfigType
 from main.app.routes import user
+from main.app.routes.oauth_routes.oauth import oauth_route
+
 from main.app.extensions.dependency_extensions import user_service
 
 
@@ -26,6 +28,7 @@ class ManageApp(object):
 
     def __register_blueprints__(self):
         self._simba_app.register_blueprint(blueprint=user.user_bp, url_prefix='/user')
+        self._simba_app.register_blueprint(blueprint=oauth_route, url_prefix='/oauth')
 
     def __register_services__(self, redis_client: RedisClient):
         self._user_service = user_service.init_service(redis_client=redis_client)
