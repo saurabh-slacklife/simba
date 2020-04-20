@@ -7,7 +7,7 @@ from main.app.config.config import ConfigType
 from main.app.routes import user
 from main.app.routes.oauth_routes.oauth import oauth_route
 
-from main.app.extensions.dependency_extensions import user_service
+from main.app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service
 
 
 class ManageApp(object):
@@ -18,6 +18,7 @@ class ManageApp(object):
 
         self._simba_app = Flask('config', template_folder=None, static_folder=None)
         self._simba_app.config.from_object(self.config_object)
+
         self.initialize_app()
 
     def initialize_app(self):
@@ -31,7 +32,12 @@ class ManageApp(object):
         self._simba_app.register_blueprint(blueprint=oauth_route, url_prefix='/oauth')
 
     def __register_services__(self, redis_client: RedisClient):
-        self._user_service = user_service.init_service(redis_client=redis_client)
+        user_service.init_service(redis_client=redis_client, config_object=self.config_object)
+        oauth_service.init_service(redis_client=redis_client, config_object=self.config_object)
+
+        from main.app.models.response.health import Health
+
+        redis_health_service.init_service(redis_client=redis_client, health=Health())
 
     @property
     def logger(self):

@@ -13,7 +13,7 @@ class RedisClient(object):
                 self.config and
                 os.environ.get('REDIS_HOST')
         ):
-            raise RuntimeError('Please set REDIS_HOST with Host in config')
+            raise RuntimeError('Please set REDIS_HOST with Host in config %s', os.environ.get('REDIS_HOST'))
 
         self._redis_connection = self.init_redis()
 
