@@ -16,19 +16,22 @@ class OAuthService(object):
         self._config_object = config_object
 
     def create_oauth_grant_code(self, oauth_grant_code_request: OAuthGrantAuthRequest):
-        pass
+        self.__client_validations__(oauth_grant_code_request)
 
     def __client_validations__(self, oauth_grant_code_request: OAuthGrantAuthRequest):
-        pass
+        client_id = oauth_grant_code_request.client_id
+        scope = oauth_grant_code_request.scope
+
+        response_list = self.__redis_hmget_query_transaction__(client_id, 'scope')
+
 
     def __redis_hmget_query_transaction__(self, name, keys):
         try:
-            pipe = self.__redis_client.pipeline()
-            pipe.execute_command('SELECT', self._config_object.CLIENT_DB)
-            pipe.hmget(name, keys)
-            pipe_response = pipe.execute()
-            response_list = pipe_response[1]
-            return response_list
+            with self.__redis_client.pipeline() as pipe:
+                pipe.execute_command('SELECT', self._config_object.CLIENT_DB)
+                pipe.hmget(name, keys)
+                pipe_response = pipe.execute()
+                return pipe_response
         except WatchError:
             return self.__fallback_redis_hmget_query__(name, keys)
 
