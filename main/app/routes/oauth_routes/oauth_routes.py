@@ -41,9 +41,18 @@ def authorize_client():
 @oauth_route.route('/token', methods=['POST', 'GET'])
 def auth_token_request():
     if request.method == 'POST':
-        oauth_token_request = OAuthTokenRequest().load(request.get_json())
+
+        oauth_token_request = OAuthTokenRequest()
+
+        oauth_token_request.client_secret = request.form['client_secret']
+        oauth_token_request.client_id = request.form['client_id']
+        oauth_token_request.grant_type = request.form['grant_type']
+        oauth_token_request.code = request.form['code']
+        oauth_token_request.redirect_uri = request.form['redirect_uri']
 
         oauth_service.create_auth_token(oauth_token_request=oauth_token_request)
+
+        return 'hello'
 
 
     else:
@@ -57,16 +66,16 @@ def auth_token_request():
 def validate_header():
     req_headers = request.headers
     req_content_type = req_headers.get(key='Content-Type')
-    req_accept_type = req_headers.get(key='Accept-Type')
+    # req_accept_type = req_headers.get(key='Accept-Type')
     if not req_content_type:
         raise BadRequestException(message={'message': 'Invalid Content Type'})
     elif req_content_type != 'application/x-www-form-urlencoded':
         raise BadRequestException(message={'message': 'Invalid Content Type'})
 
-    if not req_accept_type:
-        raise BadRequestException(message={'message': 'Invalid Accept Type'})
-    elif req_accept_type != 'application/json':
-        raise BadRequestException(message={'message': 'Invalid Accept Type'})
+    # if not req_accept_type:
+    #     raise BadRequestException(message={'message': 'Invalid Accept Type'})
+    # elif req_accept_type != 'application/json':
+    #     raise BadRequestException(message={'message': 'Invalid Accept Type'})
 
 
 @oauth_route.after_request
