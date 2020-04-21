@@ -1,8 +1,10 @@
+from typing import List
+from redis import WatchError
+
 from main.app.client.redis_client import RedisClient
 from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest
 from main.app.config.config import ConfigType
-
-from redis import WatchError
+from main.app.exception_handlers import OperationNotAllowedException
 
 
 class OAuthService(object):
@@ -22,20 +24,27 @@ class OAuthService(object):
         client_id = oauth_grant_code_request.client_id
         scope = oauth_grant_code_request.scope
 
+        # scope_list =  self.__get_scope__(client_id, scopes)
+
+    def __get_scope__(self, client_id: str, scopes: str):
         response_list = self.__redis_hmget_query_transaction__(client_id, 'scope')
+        if len(response_list) == 2:
+            return list(x for x in response_list[1].split(','))
+        else:
+            raise OperationNotAllowedException(message='Invalid Scopes')
 
-
-    def __redis_hmget_query_transaction__(self, name, keys):
-        try:
-            with self.__redis_client.pipeline() as pipe:
+    def __redis_hmget_query_transaction__(self, name, keys) -> List:
+        with self.__redis_client.pipeline() as pipe:
+            try:
                 pipe.execute_command('SELECT', self._config_object.CLIENT_DB)
                 pipe.hmget(name, keys)
-                pipe_response = pipe.execute()
+                pipe_response = pipe.execute(transaction=False)
                 return pipe_response
-        except WatchError:
-            return self.__fallback_redis_hmget_query__(name, keys)
+            except WatchError:
+                return self.__fallback_redis_hmget_query__(name, keys)
 
-    def __fallback_redis_get_query__(self, name, keys):
-        self.__redis_client.execute_command('SELECT', self._config_object.CLIENT_DB)
-        response_list = self.__redis_client.hmget(name, keys)
-        return response_list
+
+def __fallback_redis_get_query__(self, name, keys):
+    self.__redis_client.execute_command('SELECT', self._config_object.CLIENT_DB)
+    response_list = self.__redis_client.hmget(name, keys)
+    return response_list

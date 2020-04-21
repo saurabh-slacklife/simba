@@ -1,25 +1,29 @@
 from flask import Response, jsonify
 
 
-class BadRequestException(Exception):
-    def __init__(self, message, error_code):
-        self.message = message
-        self.error_code = error_code
+class BaseUserException(Exception):
+    def __init__(self, message, http_status_code: int, headers=None):
+        self._message = message
+        self._http_status_code = http_status_code
+        self._headers = headers
 
     def get_response(self) -> Response:
-        response = jsonify(self.message)
-        response.status_code = self.error_code
+        response = jsonify(self._message)
+        response.status_code = self._http_status_code
         response.headers['Content-Type'] = 'application/json'
         return response
 
 
-class InvalidRequest(Exception):
-    def __init__(self, message, error_code):
-        self.message = message
-        self.error_code = error_code
+class BadRequestException(BaseUserException):
+    def __init__(self, message, headers=None):
+        super(BadRequestException, self).__init__(message, 400, headers)
 
-    def get_response(self) -> Response:
-        response = jsonify(self.message)
-        response.status_code = self.error_code
-        response.headers['Content-Type'] = 'application/json'
-        return response
+
+class InvalidRequest(BaseUserException):
+    def __init__(self, message, headers=None):
+        super(InvalidRequest, self).__init__(message, 400, headers)
+
+
+class OperationNotAllowedException(BaseUserException):
+    def __init__(self, message, headers=None):
+        super(OperationNotAllowedException, self).__init__(message, 403, headers)

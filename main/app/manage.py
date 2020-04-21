@@ -5,7 +5,7 @@ from flask import Flask
 from main.app.client.redis_client import RedisClient
 from main.app.config.config import ConfigType
 from main.app.routes import user
-from main.app.routes.oauth_routes.oauth import oauth_route
+from main.app.routes.oauth_routes.oauth_routes import oauth_route
 
 from main.app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service
 

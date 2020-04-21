@@ -14,6 +14,7 @@ if [[ -n ${1} ]]; then
   exec gunicorn --bind "0.0.0.0:5000" main.app:simba_flask_app \
     --disable-redirect-access-to-syslog \
     --capture-output \
+    --error-logfile /var/log/simba/error.log \
     --log-file /var/log/simba/application.log \
     --access-logfile /var/log/simba/access.log \
     --log-level info
