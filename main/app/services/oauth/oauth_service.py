@@ -14,12 +14,12 @@ logger = logging.getLogger('gunicorn.error')
 
 class OAuthService(object):
     def __init__(self, redis_client: RedisClient = None, config_object: ConfigType = None):
+        self._redis_connection = None
         self._redis_client = redis_client
         self._config_object = config_object
 
     def init_service(self, redis_client: RedisClient, config_object: ConfigType):
-        if not self._redis_client:
-            self._redis_client = redis_client
+        self._redis_connection = redis_client.redis_connection
         self._config_object = config_object
 
     def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: OAuthGrantAuthRequest):
@@ -31,13 +31,14 @@ class OAuthService(object):
 
         scope_set, redirect_uri = self.__get_scope_redirect_uri__(client_id, input_scope)
 
-        logger.info(f'Redis Scope: {scope_set} and redirect_uri: {redirect_uri}')
-
         for scope in input_scope:
             if scope not in scope_set:
                 logger.error(f'Invalid input scope: {input_scope} request for Client: {client_id}')
                 raise OperationNotAllowedException(message='Invalid Scopes')
-        return self.__generate_auth_code__(client_id, scope_set), redirect_uri
+
+        oauth_code = self.__generate_auth_code__(client_id, scope_set)
+        self.__persist_code__(code=oauth_code, client_id=client_id)
+        return oauth_code, redirect_uri
 
     def __generate_auth_code__(self, client_id: str, scopes: set) -> str:
         current_time = datetime.utcnow()
@@ -53,17 +54,35 @@ class OAuthService(object):
         else:
             raise OperationNotAllowedException(message='Invalid Request')
 
+    def __persist_code__(self, code: str, client_id: str):
+        self.__redis_set_query_transaction__(name=code, value=client_id, expire=36000)
+
     def __redis_hmget_query_transaction__(self, name, *keys) -> List:
-        with self._redis_client.redis_connection.pipeline() as pipe:
+        with self._redis_connection.pipeline() as pipe:
             try:
                 pipe.execute_command('SELECT', self._config_object.CLIENT_DB)
                 pipe.hmget(name, *keys)
                 pipe_response = pipe.execute()
                 return pipe_response
             except WatchError:
-                return self.__fallback_redis_hmget_query__(name, keys)
+                return self.__fallback_redis_hget_query__(name, *keys)
 
-    def __fallback_redis_get_query__(self, name, keys):
-        self.__redis_client.execute_command('SELECT', self._config_object.CLIENT_DB)
-        response_list = self.__redis_client.hmget(name, keys)
+    def __fallback_redis_hget_query__(self, name, *keys):
+        self._redis_connection.execute_command('SELECT', self._config_object.CLIENT_DB)
+        response_list = self._redis_connection.hmget(name, *keys)
+        return response_list
+
+    def __redis_set_query_transaction__(self, name: str, value: str, expire: int) -> List:
+        with self._redis_connection.pipeline() as pipe:
+            try:
+                pipe.execute_command('SELECT', self._config_object.AUTH_CODE_DB)
+                pipe.set(name=name, value=value, ex=expire)
+                pipe_response = pipe.execute()
+                return pipe_response
+            except WatchError:
+                return self.__fallback_redis_set_query__(name=name, value=value, expire=expire)
+
+    def __fallback_redis_set_query__(self, name: str, value: str, expire: int):
+        self._redis_connection.execute_command('SELECT', self._config_object.AUTH_CODE_DB)
+        response_list = self._redis_connection.set(name=name, value=value, ex=expire)
         return response_list
