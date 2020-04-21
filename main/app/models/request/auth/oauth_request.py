@@ -1,4 +1,5 @@
-from marshmallow import fields, Schema, RAISE, post_load
+from marshmallow import fields, Schema, RAISE, post_load, validates
+from main.app.exception_handlers import BadRequestException
 
 
 class OAuthGrantAuthRequest(Schema):
@@ -16,13 +17,19 @@ class OAuthGrantAuthRequest(Schema):
 
 
 class OAuthTokenRequest(Schema):
+    grant_type = fields.String(required=True)
     code = fields.String(required=True)
-    clientId = fields.String(required=True)
-    clientSecret = fields.String(required=True)
-    signingSecret = fields.String(required=True)
+    client_id = fields.String(required=True)
+    client_secret = fields.String(required=True)
+    redirect_uri = fields.String(required=True)
 
     class Meta:
         unknown = RAISE
+
+    @validates("grant_type")
+    def validate_grant_type(self, grant_type):
+        if not grant_type and grant_type != 'authorization_code':
+            raise BadRequestException(message={'message': 'Invalid Grant Type'})
 
     @post_load(pass_original=True)
     def oauth_session_post_load(self, data, **kwargs):

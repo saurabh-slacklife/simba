@@ -1,7 +1,7 @@
-from flask import Blueprint, request, jsonify, redirect
+from flask import Blueprint, request, redirect
 
 from main.app.extensions.dependency_extensions import oauth_service
-from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest
+from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
 
 from main.app.exception_handlers import BadRequestException, BaseUserException
 import logging
@@ -15,7 +15,7 @@ oauth_route = Blueprint("Oauth", __name__)
 def authorize_client():
     req_args = request.args
 
-    if not req_args.get('response_type'):
+    if not req_args.get('response_type') and req_args.get('response_type') != 'code':
         raise BadRequestException(message={'message': 'Invalid response_type'})
     if not req_args.get('scope'):
         raise BadRequestException(message={'message': 'Invalid scope'})
@@ -25,7 +25,7 @@ def authorize_client():
         raise BadRequestException(message={'message': 'state'})
 
     oauth_grant_code_request = OAuthGrantAuthRequest()
-    oauth_grant_code_request.response_type = req_args.get('response_type')
+    oauth_grant_code_request.grant_type = req_args.get('response_type')
     oauth_grant_code_request.scope = set(x for x in req_args.get('scope').split(','))
     oauth_grant_code_request.client_id = req_args.get('client_id')
     oauth_grant_code_request.state = req_args.get('state')
@@ -36,6 +36,21 @@ def authorize_client():
     uri = f'{redirect_uri}?code={auth_code}&state={oauth_grant_code_request.state}'
 
     return redirect(uri, 302)
+
+
+@oauth_route.route('/token', methods=['POST', 'GET'])
+def auth_token_request():
+    if request.method == 'POST':
+        oauth_token_request = OAuthTokenRequest().load(request.get_json())
+
+        oauth_service.create_auth_token(oauth_token_request=oauth_token_request)
+
+
+    else:
+        # TODO Handle query request
+        req_args = request.args
+
+        pass
 
 
 @oauth_route.before_request

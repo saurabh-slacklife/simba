@@ -3,7 +3,7 @@ from redis import WatchError
 from hashlib import sha256
 from datetime import datetime
 from main.app.client.redis_client import RedisClient
-from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest
+from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
 from main.app.config.config import ConfigType
 from main.app.exception_handlers import OperationNotAllowedException
 
@@ -24,6 +24,19 @@ class OAuthService(object):
 
     def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: OAuthGrantAuthRequest):
         return self.__get_auth_code_and_redirect_uri__(oauth_grant_code_request)
+
+    def create_auth_token(self, oauth_token_request: OAuthTokenRequest):
+        client_id = oauth_token_request.client_id
+        redirect_uri = oauth_token_request.redirect_uri
+        code = oauth_token_request.code
+        client_secret = oauth_token_request.client_secret
+
+        # TODO Implement this method. Compare code-to-client_id mapping and return the client_id
+        self.is_auth_code_valid(code, client_id)
+
+        #TODO Implement this method. Validate the client_secret, redirect_uri with DB
+        self.is_client_valid(client_id, client_secret, redirect_uri)
+
 
     def __get_auth_code_and_redirect_uri__(self, oauth_grant_code_request: OAuthGrantAuthRequest):
         client_id = oauth_grant_code_request.client_id
@@ -53,6 +66,8 @@ class OAuthService(object):
             return set(x for x in redis_response[0].decode('utf-8').split(',')), redis_response[1].decode('utf-8')
         else:
             raise OperationNotAllowedException(message='Invalid Request')
+
+    # TODO Add all below Redis methods to DAO
 
     def __persist_code__(self, code: str, client_id: str):
         self.__redis_set_query_transaction__(name=code, value=client_id, expire=36000)
