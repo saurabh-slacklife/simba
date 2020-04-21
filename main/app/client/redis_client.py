@@ -41,7 +41,8 @@ class RedisClient(object):
                                       socket_connect_timeout=BaseConfig.REDIS_SOCKET_CONNECT_TIMEOUT,
                                       socket_keepalive=BaseConfig.REDIS_SOCKET_KEEP_ALIVE,
                                       health_check_interval=BaseConfig.REDIS_HEALTH_CHECK_INTERVAL,
-                                      client_name=BaseConfig.REDIS_CLIENT_NAME)
+                                      client_name=BaseConfig.REDIS_CLIENT_NAME,
+                                      encoding='utf-8', decode_responses=True)
 
         pool = BlockingConnectionPool(timeout=BaseConfig.REDIS_CONNECTION_TIMEOUT,
                                       max_connections=BaseConfig.REDIS_MAX_CONNECTION)

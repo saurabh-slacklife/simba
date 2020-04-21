@@ -31,6 +31,8 @@ class OAuthService(object):
 
         scope_set, redirect_uri = self.__get_scope_redirect_uri__(client_id, input_scope)
 
+        logger.info(f'Redis Scope: {scope_set} and redirect_uri: {redirect_uri}')
+
         for scope in input_scope:
             if scope not in scope_set:
                 logger.error(f'Invalid input scope: {input_scope} request for Client: {client_id}')
@@ -40,13 +42,14 @@ class OAuthService(object):
     def __generate_auth_code__(self, client_id: str, scopes: set) -> str:
         current_time = datetime.utcnow()
         hash_value = "%s:%s:%s" % (scopes, current_time.isoformat(), client_id)
-        return sha256(hash_value).hexdigest()
+        return sha256(hash_value.encode('utf-8')).hexdigest()
 
     def __get_scope_redirect_uri__(self, client_id: str, scopes: str) -> set:
         response_list = self.__redis_hmget_query_transaction__(client_id, 'scope', 'redirect_uri')
         logger.error(f'response_list size: {len(response_list)} response: {response_list}')
         if len(response_list) == 2:
-            return set(x for x in response_list[1].split(',')), response_list[0]
+            redis_response = response_list[1]
+            return set(x for x in redis_response[0].decode('utf-8').split(',')), redis_response[1].decode('utf-8')
         else:
             raise OperationNotAllowedException(message='Invalid Request')
 
