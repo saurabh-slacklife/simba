@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect
 
 from main.app.extensions.dependency_extensions import oauth_service
 from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest
@@ -6,7 +6,7 @@ from main.app.models.request.auth.oauth_request import OAuthGrantAuthRequest
 from main.app.exception_handlers import BadRequestException, BaseUserException
 import logging
 
-gunicorn_logger = logging.getLogger('gunicorn.error')
+logger = logging.getLogger('gunicorn.error')
 
 oauth_route = Blueprint("Oauth", __name__)
 
@@ -26,20 +26,16 @@ def authorize_client():
 
     oauth_grant_code_request = OAuthGrantAuthRequest()
     oauth_grant_code_request.response_type = req_args.get('response_type')
-    oauth_grant_code_request.scope = list(x for x in req_args.get('scope').split(','))
+    oauth_grant_code_request.scope = set(x for x in req_args.get('scope').split(','))
     oauth_grant_code_request.client_id = req_args.get('client_id')
     oauth_grant_code_request.state = req_args.get('state')
 
-    gunicorn_logger.info('Input scopes: %s', req_args.get('scope'))
-    gunicorn_logger.info(
-        f'Input parsed scopes: {oauth_grant_code_request.scope} and type: {type(oauth_grant_code_request.scope)}')
+    auth_code, redirect_uri = oauth_service.create_oauth_grant_code_and_redirect_uri(
+        oauth_grant_code_request=oauth_grant_code_request)
 
-    oauth_service.create_oauth_grant_code(oauth_grant_code_request=oauth_grant_code_request)
+    uri = f'{redirect_uri}?code={auth_code}&state={oauth_grant_code_request.state}'
 
-    auth_response = jsonify('resp_dict')
-    auth_response.status_code = 200
-
-    return auth_response
+    return redirect(uri, 302)
 
 
 @oauth_route.before_request

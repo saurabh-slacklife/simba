@@ -1,15 +1,7 @@
-from marshmallow import fields, Schema, RAISE, post_load
-
-
-class OAuthTokenResponse(Schema):
-    access_token = fields.String(required=True)
-    refresh_token = fields.String(required=True)
-    token_type = fields.String(required=True)
-    expires = fields.Integer(required=True)
-
-    class Meta:
-        unknown = RAISE
-
-    @post_load
-    def oauth_token_post_load(self, data, **kwargs):
-        return OAuthTokenResponse(**data)
+class OAuthTokenResponse(object):
+    def __init__(self, access_token: str, refresh_token: str,
+                 token_type: str, expires: int):
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.token_type = token_type
+        self.expires = expires

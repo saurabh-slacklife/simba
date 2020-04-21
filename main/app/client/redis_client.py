@@ -18,8 +18,18 @@ class RedisClient(object):
         self._redis_connection = self.init_redis()
 
     def init_redis(self):
-        connection_pool = self.__create_connection_pool__()
-        return Redis(connection_pool=connection_pool)
+        # connection_pool = self.__create_connection_pool__()
+        return Redis(host=os.environ.get('REDIS_HOST'), port=os.environ.get('REDIS_PORT', 6379),
+                     db=self.config.get('REDIS_DB', 0),
+                     username=self.config.get('REDIS_USERNAME', None),
+                     password=os.environ.get('REDIS_PASSWORD', None),
+                     socket_timeout=BaseConfig.REDIS_SOCKET_TIMEOUT,
+                     socket_connect_timeout=BaseConfig.REDIS_SOCKET_CONNECT_TIMEOUT,
+                     socket_keepalive=BaseConfig.REDIS_SOCKET_KEEP_ALIVE,
+                     health_check_interval=BaseConfig.REDIS_HEALTH_CHECK_INTERVAL,
+                     client_name=BaseConfig.REDIS_CLIENT_NAME,
+                     max_connections=BaseConfig.REDIS_MAX_CONNECTION
+                     )
 
     # TODO Change the access of Baseconfig, it should just hold the Variable names to be taken from config
     def __create_connection_pool__(self) -> BlockingConnectionPool:
@@ -33,9 +43,9 @@ class RedisClient(object):
                                       health_check_interval=BaseConfig.REDIS_HEALTH_CHECK_INTERVAL,
                                       client_name=BaseConfig.REDIS_CLIENT_NAME)
 
-        pool = BlockingConnectionPool(onnection_class=connection_class,
-                                      timeout=BaseConfig.REDIS_CONNECTION_TIMEOUT,
+        pool = BlockingConnectionPool(timeout=BaseConfig.REDIS_CONNECTION_TIMEOUT,
                                       max_connections=BaseConfig.REDIS_MAX_CONNECTION)
+        pool.connection_class = connection_class
         return pool
 
     @property

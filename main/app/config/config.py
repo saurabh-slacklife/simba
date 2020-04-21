@@ -9,7 +9,7 @@ class BaseConfig:
     ENV = 'dev'
     PORT = 5000
     USER_DB = 0
-    CLIENT_DB = 0
+    CLIENT_DB = 5
     REDIS_SOCKET_CONNECT_TIMEOUT = 30
     REDIS_SOCKET_TIMEOUT = 30
     REDIS_HEALTH_CHECK_INTERVAL = 120
