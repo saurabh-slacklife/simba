@@ -1,10 +1,11 @@
-from flask import Blueprint, request, redirect
+import logging
 
-from src.app.extensions.dependency_extensions import oauth_service
-from src.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
+from flask import Blueprint, request, redirect, Response, jsonify
 
 from src.app.exception_handlers import BadRequestException, BaseUserException
-import logging
+from src.app.extensions.dependency_extensions import oauth_service
+from src.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
+from src.app.models.response.oauth_response.oauth_response import OAuthTokenResponseEncoder
 
 logger = logging.getLogger('gunicorn.error')
 
@@ -39,9 +40,8 @@ def authorize_client():
 
 
 @oauth_route.route('/token', methods=['POST', 'GET'])
-def auth_token_request():
+def auth_token_request() -> Response:
     if request.method == 'POST':
-
         oauth_token_request = OAuthTokenRequest()
 
         oauth_token_request.client_secret = request.form['client_secret']
@@ -50,16 +50,8 @@ def auth_token_request():
         oauth_token_request.code = request.form['code']
         oauth_token_request.redirect_uri = request.form['redirect_uri']
 
-        oauth_service.create_auth_token(oauth_token_request=oauth_token_request)
-
-        return 'hello'
-
-
-    else:
-        # TODO Handle query request
-        req_args = request.args
-
-        pass
+        oauth_token_response = oauth_service.process_auth_token_request(oauth_token_request=oauth_token_request)
+        return OAuthTokenResponseEncoder().encode(oauth_token_response)
 
 
 @oauth_route.before_request
@@ -77,7 +69,7 @@ def validate_header():
 
 @oauth_route.after_request
 def add_header(response):
-    response.headers['Content-Type'] = 'application/json;charset=UTF-8'
+    response.headers['Content-Type'] = 'application/json;charset=utf-8'
     response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     return response
