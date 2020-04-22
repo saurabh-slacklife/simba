@@ -1,16 +1,16 @@
 import logging
 from datetime import datetime
 from hashlib import sha256
-from typing import List
 
-from redis import WatchError, Redis
-from redis.client import Pipeline
+from redis import Redis
 
 from src.app.client.redis_client import RedisClient
 from src.app.config.config import ConfigType
+from src.app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
+from src.app.dao.auth_token_dao import redis_get_client_info
 from src.app.exception_handlers import OperationNotAllowedException, BadRequestException
-from src.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
-from src.app.models.response.oauth_response.oauth_response import OAuthTokenResponse
+from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest
+from src.app.models.response.auth_token.oauth_response import AuthTokenResponse
 
 logger = logging.getLogger('gunicorn.error')
 
@@ -25,12 +25,17 @@ class OAuthService(object):
         self._redis_connection = redis_client.redis_connection
         self._config_object = config_object
 
+    def __generate_sha__(self, client_id: str, value: str) -> str:
+        current_time = datetime.utcnow()
+        hash_value = "%s:%s:%s" % (value, current_time.isoformat(), client_id)
+        return sha256(hash_value.encode('utf-8')).hexdigest()
+
     # Auth Code flow
 
-    def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: OAuthGrantAuthRequest):
+    def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: GrantAuthRequest):
         return self.__get_auth_code_and_redirect_uri__(oauth_grant_code_request)
 
-    def __get_auth_code_and_redirect_uri__(self, oauth_grant_code_request: OAuthGrantAuthRequest):
+    def __get_auth_code_and_redirect_uri__(self, oauth_grant_code_request: GrantAuthRequest):
         client_id = oauth_grant_code_request.client_id
         input_scope = oauth_grant_code_request.scope
 
@@ -45,14 +50,9 @@ class OAuthService(object):
         self.__persist_code__(code=oauth_code, client_id=client_id)
         return oauth_code, redirect_uri
 
-    def __generate_sha__(self, client_id: str, value: set) -> str:
-        current_time = datetime.utcnow()
-        hash_value = "%s:%s:%s" % (value, current_time.isoformat(), client_id)
-        return sha256(hash_value.encode('utf-8')).hexdigest()
-
     def __get_scope_redirect_uri__(self, client_id: str, scopes: str) -> set:
-        response_list = self.__redis_hmget_query_pipeline__(client_id, self._config_object.CLIENT_DB,
-                                                            'scope', 'redirect_uri')
+        response_list = redis_get_client_info(self._redis_connection, client_id, self._config_object.CLIENT_DB,
+                                              'scope', 'redirect_uri')
         logger.error(f'response_list size: {len(response_list)} response: {response_list}')
         if len(response_list) == 2:
             redis_response = response_list[1]
@@ -61,30 +61,33 @@ class OAuthService(object):
             raise OperationNotAllowedException(message='Invalid Request')
 
     def __persist_code__(self, code: str, client_id: str):
-        self.__redis_set_query_pipeline__(name=code, value=client_id, expire=600, db=self._config_object.AUTH_CODE_DB)
+        persist_auth_code(redis_connection=self._redis_connection, name=code, value=client_id, expire=600,
+                          db=self._config_object.AUTH_CODE_DB)
 
     # Access Token Flow
 
-    def process_auth_token_request(self, oauth_token_request: OAuthTokenRequest) -> OAuthTokenResponse:
+    def process_auth_token_request(self, oauth_token_request: AuthTokenRequest) -> AuthTokenResponse:
         if self.__is_token_request_valid__(oauth_token_request=oauth_token_request):
 
             access_token, refresh_token = self.__generate_access_token__(oauth_token_request=oauth_token_request)
 
-            oauth_response = OAuthTokenResponse(access_token=access_token, refresh_token=refresh_token,
-                                                token_type='API-Access', expires=3600)
+            oauth_response = AuthTokenResponse(access_token=access_token, refresh_token=refresh_token,
+                                               token_type='API-Access', expires=3600)
 
-            self.__persist_token__(client_id=oauth_token_request.client_id, oauth_response=oauth_response,
-                                   auth_code=oauth_token_request.code)
+            persist_token(redis_connection=self._redis_connection, client_id=oauth_token_request.client_id,
+                          oauth_response=oauth_response, auth_code=oauth_token_request.code,
+                          client_db=self._config_object.CLIENT_DB, auth_code_db=self._config_object.AUTH_CODE_DB)
 
             return oauth_response
         else:
             raise BadRequestException(message='Invalid Client Id')
 
-    def __is_token_request_valid__(self, oauth_token_request: OAuthTokenRequest):
+    def __is_token_request_valid__(self, oauth_token_request: AuthTokenRequest):
         client_id = oauth_token_request.client_id
-        response_list = self.__redis_fetch_code_client_details__(oauth_token_request=oauth_token_request,
-                                                                 db_1=self._config_object.AUTH_CODE_DB,
-                                                                 db_2=self._config_object.CLIENT_DB)
+        response_list = fetch_auth_code_client_info(redis_connection=self._redis_connection,
+                                                    oauth_token_request=oauth_token_request,
+                                                    db_1=self._config_object.AUTH_CODE_DB,
+                                                    db_2=self._config_object.CLIENT_DB)
 
         logger.info(f'Token Request response: {response_list} and length: {len(response_list)}')
 
@@ -115,89 +118,3 @@ class OAuthService(object):
         # Step 2 Generate Access Token
         refresh_token = self.__generate_sha__(client_id=oauth_token_request.client_id, value=refresh_str)
         return access_token, refresh_token
-
-    def __persist_token__(self, client_id: str, oauth_response: OAuthTokenResponse, auth_code: str):
-        access_token_key = "%s:%s" % (client_id, 'access_token')
-        refresh_token_key = "%s:%s" % (client_id, 'refresh_token')
-
-        with self._redis_connection.pipeline() as pipe:
-            self.__redis_sadd_pipeline__(pipe, access_token_key, self._config_object.CLIENT_DB,
-                                         oauth_response.access_token)
-            self.__redis_sadd_pipeline__(pipe, refresh_token_key, self._config_object.CLIENT_DB,
-                                         oauth_response.refresh_token)
-
-            self.__redis_set_query_pipe__(pipe=pipe, name=oauth_response.access_token, value='VALID', expire=3600,
-                                          db=self._config_object.CLIENT_DB)
-            self.__redis_set_query_pipe__(pipe=pipe, name=oauth_response.refresh_token, value='VALID', expire=36000,
-                                          db=self._config_object.CLIENT_DB)
-
-            self.__redis_remove_query_pipeline__(pipe=pipe, name=auth_code, db=self._config_object.AUTH_CODE_DB)
-
-            pipe.execute()
-
-    # TODO Add all below Redis methods to DAO
-
-    def __redis_sadd_pipeline__(self, pipe, name, db: int, *value):
-        try:
-            pipe.execute_command('SELECT', db)
-            pipe.sadd(name, *value)
-        except WatchError:
-            logger.error(exc_info=True)
-
-    def __redis_hmset_query_pipeline__(self, name, db: int, *keys) -> List:
-        with self._redis_connection.pipeline() as pipe:
-            try:
-                pipe.execute_command('SELECT', db)
-                pipe.hmset(name, *keys)
-                pipe_response = pipe.execute()
-                return pipe_response
-            except WatchError:
-                logger.error(exc_info=True)
-
-    def __redis_hmget_query_pipeline__(self, name, db: int, *keys) -> List:
-        with self._redis_connection.pipeline() as pipe:
-            try:
-                pipe.execute_command('SELECT', db)
-                pipe.hmget(name, *keys)
-                pipe_response = pipe.execute()
-                return pipe_response
-            except WatchError:
-                logger.error(exc_info=True)
-
-    def __redis_fetch_code_client_details__(self, oauth_token_request: OAuthTokenRequest,
-                                            db_1: int,
-                                            db_2: int):
-        with self._redis_connection.pipeline() as pipe:
-            try:
-                pipe.execute_command('SELECT', db_1)
-                pipe.get(oauth_token_request.code)
-                pipe.execute_command('SELECT', db_2)
-                pipe.hmget(oauth_token_request.client_id, 'client_secret',
-                           'redirect_uri')
-                return pipe.execute()
-            except WatchError:
-                logger.error(exc_info=True)
-
-    def __redis_set_query_pipeline__(self, name: str, value: str, expire: int, db: int) -> List:
-        with self._redis_connection.pipeline() as pipe:
-            try:
-                pipe.execute_command('SELECT', db)
-                pipe.set(name=name, value=value, ex=expire)
-                pipe_response = pipe.execute()
-                return pipe_response
-            except WatchError:
-                logger.error(exc_info=True)
-
-    def __redis_set_query_pipe__(self, pipe: Pipeline, name: str, value: str, expire: int, db: int) -> List:
-        try:
-            pipe.execute_command('SELECT', db)
-            pipe.set(name=name, value=value, ex=expire)
-        except WatchError:
-            logger.error(exc_info=True)
-
-    def __redis_remove_query_pipeline__(self, pipe, name, db):
-        try:
-            pipe.execute_command('SELECT', db)
-            pipe.delete(name)
-        except WatchError as we:
-            logger.error(exc_info=True)

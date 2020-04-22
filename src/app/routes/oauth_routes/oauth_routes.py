@@ -4,8 +4,8 @@ from flask import Blueprint, request, redirect, Response, jsonify
 
 from src.app.exception_handlers import BadRequestException, BaseUserException
 from src.app.extensions.dependency_extensions import oauth_service
-from src.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
-from src.app.models.response.oauth_response.oauth_response import OAuthTokenResponseEncoder
+from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest
+from src.app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
 
 logger = logging.getLogger('gunicorn.error')
 
@@ -25,7 +25,7 @@ def authorize_client():
     if not req_args.get('state'):
         raise BadRequestException(message={'message': 'state'})
 
-    oauth_grant_code_request = OAuthGrantAuthRequest()
+    oauth_grant_code_request = GrantAuthRequest()
     oauth_grant_code_request.grant_type = req_args.get('response_type')
     oauth_grant_code_request.scope = set(x for x in req_args.get('scope').split(','))
     oauth_grant_code_request.client_id = req_args.get('client_id')
@@ -42,7 +42,7 @@ def authorize_client():
 @oauth_route.route('/token', methods=['POST', 'GET'])
 def auth_token_request() -> Response:
     if request.method == 'POST':
-        oauth_token_request = OAuthTokenRequest()
+        oauth_token_request = AuthTokenRequest()
 
         oauth_token_request.client_secret = request.form['client_secret']
         oauth_token_request.client_id = request.form['client_id']
@@ -51,7 +51,7 @@ def auth_token_request() -> Response:
         oauth_token_request.redirect_uri = request.form['redirect_uri']
 
         oauth_token_response = oauth_service.process_auth_token_request(oauth_token_request=oauth_token_request)
-        return OAuthTokenResponseEncoder().encode(oauth_token_response)
+        return AuthTokenResponseEncoder().encode(oauth_token_response)
 
 
 @oauth_route.before_request

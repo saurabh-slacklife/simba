@@ -1,8 +1,9 @@
 from marshmallow import fields, Schema, RAISE, post_load, validates
+
 from src.app.exception_handlers import BadRequestException
 
 
-class OAuthGrantAuthRequest(Schema):
+class GrantAuthRequest(Schema):
     response_type = fields.String(required=True)
     scope = fields.List(fields.String(required=True), required=True)
     client_id = fields.String(required=True)
@@ -13,10 +14,10 @@ class OAuthGrantAuthRequest(Schema):
 
     @post_load(pass_original=True)
     def oauth_grant_code_post_load(self, data, **kwargs):
-        return OAuthGrantAuthRequest(**data, **kwargs)
+        return GrantAuthRequest(**data, **kwargs)
 
 
-class OAuthTokenRequest(Schema):
+class AuthTokenRequest(Schema):
     grant_type = fields.String(required=True)
     code = fields.String(required=True)
     client_id = fields.String(required=True)
@@ -33,4 +34,4 @@ class OAuthTokenRequest(Schema):
 
     @post_load(pass_original=True)
     def oauth_session_post_load(self, data, **kwargs):
-        return OAuthTokenRequest(**data, **kwargs)
+        return AuthTokenRequest(**data, **kwargs)
