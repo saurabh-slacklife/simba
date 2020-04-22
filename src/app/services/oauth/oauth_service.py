@@ -1,14 +1,16 @@
-from typing import List
-from redis import WatchError, Redis
-from hashlib import sha256
+import logging
 from datetime import datetime
+from hashlib import sha256
+from typing import List
+
+from redis import WatchError, Redis
+from redis.client import Pipeline
+
 from src.app.client.redis_client import RedisClient
-from src.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
-from src.app.models.response.oauth_response.oauth_response import OAuthTokenResponse
 from src.app.config.config import ConfigType
 from src.app.exception_handlers import OperationNotAllowedException, BadRequestException
-
-import logging
+from src.app.models.request.auth.oauth_request import OAuthGrantAuthRequest, OAuthTokenRequest
+from src.app.models.response.oauth_response.oauth_response import OAuthTokenResponse
 
 logger = logging.getLogger('gunicorn.error')
 
@@ -59,7 +61,7 @@ class OAuthService(object):
             raise OperationNotAllowedException(message='Invalid Request')
 
     def __persist_code__(self, code: str, client_id: str):
-        self.__redis_set_query_pipeline__(name=code, value=client_id, expire=36000, db=self._config_object.AUTH_CODE_DB)
+        self.__redis_set_query_pipeline__(name=code, value=client_id, expire=600, db=self._config_object.AUTH_CODE_DB)
 
     # Access Token Flow
 
@@ -69,7 +71,7 @@ class OAuthService(object):
             access_token, refresh_token = self.__generate_access_token__(oauth_token_request=oauth_token_request)
 
             oauth_response = OAuthTokenResponse(access_token=access_token, refresh_token=refresh_token,
-                                                token_type='API-Access', expires=216000)
+                                                token_type='API-Access', expires=3600)
 
             self.__persist_token__(client_id=oauth_token_request.client_id, oauth_response=oauth_response,
                                    auth_code=oauth_token_request.code)
@@ -115,24 +117,32 @@ class OAuthService(object):
         return access_token, refresh_token
 
     def __persist_token__(self, client_id: str, oauth_response: OAuthTokenResponse, auth_code: str):
-        hash_name = client_id
-        hash_pair = {oauth_response.access_token: oauth_response.expires, }
-        self.__redis_sadd_pipeline__(client_id, self._config_object.CLIENT_DB, oauth_response.access_token)
+        access_token_key = "%s:%s" % (client_id, 'access_token')
+        refresh_token_key = "%s:%s" % (client_id, 'refresh_token')
 
-        pass
+        with self._redis_connection.pipeline() as pipe:
+            self.__redis_sadd_pipeline__(pipe, access_token_key, self._config_object.CLIENT_DB,
+                                         oauth_response.access_token)
+            self.__redis_sadd_pipeline__(pipe, refresh_token_key, self._config_object.CLIENT_DB,
+                                         oauth_response.refresh_token)
+
+            self.__redis_set_query_pipe__(pipe=pipe, name=oauth_response.access_token, value='VALID', expire=3600,
+                                          db=self._config_object.CLIENT_DB)
+            self.__redis_set_query_pipe__(pipe=pipe, name=oauth_response.refresh_token, value='VALID', expire=36000,
+                                          db=self._config_object.CLIENT_DB)
+
+            self.__redis_remove_query_pipeline__(pipe=pipe, name=auth_code, db=self._config_object.AUTH_CODE_DB)
+
+            pipe.execute()
 
     # TODO Add all below Redis methods to DAO
 
-    def __redis_sadd_pipeline__(self, name, db: int, *value):
-        with self._redis_connection.pipeline() as pipe:
-            try:
-                pipe.execute_command('SELECT', db)
-                pipe.sadd(name, *value)
-                pipe_response = pipe.execute()
-                return pipe_response
-            except WatchError:
-                # TODO handle
-                pass
+    def __redis_sadd_pipeline__(self, pipe, name, db: int, *value):
+        try:
+            pipe.execute_command('SELECT', db)
+            pipe.sadd(name, *value)
+        except WatchError:
+            logger.error(exc_info=True)
 
     def __redis_hmset_query_pipeline__(self, name, db: int, *keys) -> List:
         with self._redis_connection.pipeline() as pipe:
@@ -142,7 +152,7 @@ class OAuthService(object):
                 pipe_response = pipe.execute()
                 return pipe_response
             except WatchError:
-                return self.__fallback_redis_hget_query__(name=name, db=db, *keys)
+                logger.error(exc_info=True)
 
     def __redis_hmget_query_pipeline__(self, name, db: int, *keys) -> List:
         with self._redis_connection.pipeline() as pipe:
@@ -152,12 +162,7 @@ class OAuthService(object):
                 pipe_response = pipe.execute()
                 return pipe_response
             except WatchError:
-                return self.__fallback_redis_hget_query__(name=name, db=db, *keys)
-
-    def __fallback_redis_hget_query__(self, name, db: int, *keys):
-        with self._redis_connection as redis_conn:
-            redis_conn.execute_command('SELECT', db)
-            return redis_conn.hmget(name, *keys)
+                logger.error(exc_info=True)
 
     def __redis_fetch_code_client_details__(self, oauth_token_request: OAuthTokenRequest,
                                             db_1: int,
@@ -171,14 +176,7 @@ class OAuthService(object):
                            'redirect_uri')
                 return pipe.execute()
             except WatchError:
-                pass
-        # TODO Handle fall back
-        # return self.__fallback_redis_get_query__(key=key, db=db)
-
-    def __fallback_redis_get_query__(self, key: str, db: int):
-        with self._redis_connection as redis_conn:
-            redis_conn.execute_command('SELECT', db)
-            return redis_conn.get(key)
+                logger.error(exc_info=True)
 
     def __redis_set_query_pipeline__(self, name: str, value: str, expire: int, db: int) -> List:
         with self._redis_connection.pipeline() as pipe:
@@ -188,9 +186,18 @@ class OAuthService(object):
                 pipe_response = pipe.execute()
                 return pipe_response
             except WatchError:
-                return self.__fallback_redis_set_query__(name=name, value=value, expire=expire, db=db)
+                logger.error(exc_info=True)
 
-    def __fallback_redis_set_query__(self, name: str, value: str, expire: int, db: int):
-        with self._redis_connection as redis_conn:
-            redis_conn.execute_command('SELECT', db)
-            return redis_conn.set(name=name, value=value, ex=expire)
+    def __redis_set_query_pipe__(self, pipe: Pipeline, name: str, value: str, expire: int, db: int) -> List:
+        try:
+            pipe.execute_command('SELECT', db)
+            pipe.set(name=name, value=value, ex=expire)
+        except WatchError:
+            logger.error(exc_info=True)
+
+    def __redis_remove_query_pipeline__(self, pipe, name, db):
+        try:
+            pipe.execute_command('SELECT', db)
+            pipe.delete(name)
+        except WatchError as we:
+            logger.error(exc_info=True)
