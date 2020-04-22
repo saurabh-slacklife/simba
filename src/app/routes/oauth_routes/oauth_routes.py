@@ -66,21 +66,18 @@ def auth_token_request():
 def validate_header():
     req_headers = request.headers
     req_content_type = req_headers.get(key='Content-Type')
-    # req_accept_type = req_headers.get(key='Accept-Type')
     if not req_content_type:
         raise BadRequestException(message={'message': 'Invalid Content Type'})
-    elif req_content_type != 'application/x-www-form-urlencoded':
+    elif (req_content_type == 'application/x-www-form-urlencoded;charset=utf-8'
+          or req_content_type == 'application/x-www-form-urlencoded'):
+        pass
+    else:
         raise BadRequestException(message={'message': 'Invalid Content Type'})
-
-    # if not req_accept_type:
-    #     raise BadRequestException(message={'message': 'Invalid Accept Type'})
-    # elif req_accept_type != 'application/json':
-    #     raise BadRequestException(message={'message': 'Invalid Accept Type'})
 
 
 @oauth_route.after_request
 def add_header(response):
-    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Type'] = 'application/json;charset=UTF-8'
     response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     return response

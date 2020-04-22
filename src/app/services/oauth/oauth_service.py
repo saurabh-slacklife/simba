@@ -22,16 +22,10 @@ class OAuthService(object):
         self._redis_connection = redis_client.redis_connection
         self._config_object = config_object
 
+    # Auth Code flow
+
     def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: OAuthGrantAuthRequest):
         return self.__get_auth_code_and_redirect_uri__(oauth_grant_code_request)
-
-    def create_auth_token(self, oauth_token_request: OAuthTokenRequest):
-        if self.__is_token_request_valid__(oauth_token_request=oauth_token_request):
-            return self.__generate_token__(oauth_token_request=oauth_token_request)
-        else:
-            raise BadRequestException(message='Invalid Client Id')
-
-    # Auth Code flow
 
     def __get_auth_code_and_redirect_uri__(self, oauth_grant_code_request: OAuthGrantAuthRequest):
         client_id = oauth_grant_code_request.client_id
@@ -44,13 +38,13 @@ class OAuthService(object):
                 logger.error(f'Invalid input scope: {input_scope} request for Client: {client_id}')
                 raise OperationNotAllowedException(message='Invalid Scopes')
 
-        oauth_code = self.__generate_auth_code__(client_id, scope_set)
+        oauth_code = self.__generate_sha__(client_id, scope_set)
         self.__persist_code__(code=oauth_code, client_id=client_id)
         return oauth_code, redirect_uri
 
-    def __generate_auth_code__(self, client_id: str, scopes: set) -> str:
+    def __generate_sha__(self, client_id: str, value: set) -> str:
         current_time = datetime.utcnow()
-        hash_value = "%s:%s:%s" % (scopes, current_time.isoformat(), client_id)
+        hash_value = "%s:%s:%s" % (value, current_time.isoformat(), client_id)
         return sha256(hash_value.encode('utf-8')).hexdigest()
 
     def __get_scope_redirect_uri__(self, client_id: str, scopes: str) -> set:
@@ -67,6 +61,16 @@ class OAuthService(object):
         self.__redis_set_query_pipeline__(name=code, value=client_id, expire=36000, db=self._config_object.AUTH_CODE_DB)
 
     # Access Token Flow
+
+    def create_auth_token(self, oauth_token_request: OAuthTokenRequest):
+        if self.__is_token_request_valid__(oauth_token_request=oauth_token_request):
+
+            access_token, refresh_token = self.__generate_access_token__(oauth_token_request=oauth_token_request)
+
+            return access_token, refresh_token
+        else:
+            raise BadRequestException(message='Invalid Client Id')
+
     def __is_token_request_valid__(self, oauth_token_request: OAuthTokenRequest):
         client_id = oauth_token_request.client_id
         response_list = self.__redis_fetch_code_client_details__(oauth_token_request=oauth_token_request,
@@ -94,8 +98,14 @@ class OAuthService(object):
         else:
             raise BadRequestException(message='Invalid Auth Code or Client Id combination')
 
-    def __generate_token__(self, oauth_token_request):
-        pass
+    def __generate_access_token__(self, oauth_token_request):
+        token_str = "%s:%s" % (oauth_token_request.grant_type, oauth_token_request.grant_type)
+        # Step 1 Generate Refresh Token
+        access_token = self.__generate_sha__(client_id=oauth_token_request.client_id, value=token_str)
+        refresh_str = "%s:%s" % (token_str, "refresh")
+        # Step 2 Generate Access Token
+        refresh_token = self.__generate_sha__(client_id=oauth_token_request.client_id, value=refresh_str)
+        return access_token, refresh_token
 
     # TODO Add all below Redis methods to DAO
 
