@@ -36,7 +36,8 @@ def save_auth_refresh_token(redis_connection,
         redis_set_query_pipe(pipe=pipe, name=oauth_response.refresh_token, value='VALID', expire=36000,
                              db=client_db)
 
-        redis_remove_query_pipeline(pipe=pipe, name=auth_code, db=auth_code_db)
+        if not auth_code and not auth_code_db:
+            redis_remove_query_pipeline(pipe=pipe, name=auth_code, db=auth_code_db)
 
         pipe.execute()
 

@@ -4,7 +4,7 @@ from flask import Blueprint, request, redirect, Response
 
 from src.app.exception_handlers import BadRequestException, BaseUserException
 from src.app.extensions.dependency_extensions import oauth_service
-from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest
+from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from src.app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
 
 logger = logging.getLogger('gunicorn.error')
@@ -60,20 +60,19 @@ def auth_token_request() -> Response:
 
 @oauth_route.route('/token/refresh', methods=['POST'])
 def token_refresh_request() -> Response:
-    oauth_token_request = AuthTokenRequest()
+    refresh_token_request = RefreshTokenRequest()
 
-    oauth_token_request.client_secret = request.form['client_secret']
-    oauth_token_request.client_id = request.form['client_id']
-    oauth_token_request.redirect_uri = request.form['redirect_uri']
+    refresh_token_request.client_secret = request.form['client_secret']
+    refresh_token_request.client_id = request.form['client_id']
 
     if not request.form['grant_type']:
         raise BadRequestException(message={'message': 'Invalid Grant Type'})
     elif 'refresh_token' != request.form['grant_type'] and not request.form['refresh_token']:
         raise BadRequestException(message={'message': 'Invalid Grant Type'})
     else:
-        oauth_token_request.grant_type = request.form['grant_type']
-        oauth_token_request.code = request.form['refresh_token']
-        oauth_token_response = oauth_service.process_auth_token_request(oauth_token_request=oauth_token_request)
+        refresh_token_request.grant_type = request.form['grant_type']
+        refresh_token_request.code = request.form['refresh_token']
+        oauth_token_response = oauth_service.process_refresh_token_request(refresh_token_request=refresh_token_request)
         return AuthTokenResponseEncoder().encode(oauth_token_response)
 
 

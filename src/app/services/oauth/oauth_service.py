@@ -9,7 +9,7 @@ from src.app.config.config import ConfigType
 from src.app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
 from src.app.dao.auth_token_dao import redis_get_client_info
 from src.app.exception_handlers import OperationNotAllowedException, BadRequestException
-from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest
+from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from src.app.models.response.auth_token.oauth_response import AuthTokenResponse
 
 logger = logging.getLogger('gunicorn.error')
@@ -25,9 +25,9 @@ class OAuthService(object):
         self._redis_connection = redis_client.redis_connection
         self._config_object = config_object
 
-    def __generate_sha__(self, client_id: str, value: str) -> str:
+    def __generate_sha__(self, key: str, value: str) -> str:
         current_time = datetime.utcnow()
-        hash_value = "%s:%s:%s" % (value, current_time.isoformat(), client_id)
+        hash_value = "%s:%s:%s" % (value, current_time.isoformat(), key)
         return sha256(hash_value.encode('utf-8')).hexdigest()
 
     # Auth Code flow
@@ -69,7 +69,9 @@ class OAuthService(object):
     def process_auth_token_request(self, oauth_token_request: AuthTokenRequest) -> AuthTokenResponse:
         if self.__is_token_request_valid__(oauth_token_request=oauth_token_request):
 
-            access_token, refresh_token = self.__generate_access_token__(oauth_token_request=oauth_token_request)
+            access_token, refresh_token = self.__generate_access_refresh_token__(
+                client_id=oauth_token_request.client_id,
+                client_secret=oauth_token_request.client_secret)
 
             oauth_response = AuthTokenResponse(access_token=access_token, refresh_token=refresh_token,
                                                token_type='API-Access', expires=3600)
@@ -110,11 +112,51 @@ class OAuthService(object):
         else:
             raise BadRequestException(message='Invalid Auth Code or Client Id combination')
 
-    def __generate_access_token__(self, oauth_token_request):
-        token_str = "%s:%s" % (oauth_token_request.grant_type, oauth_token_request.grant_type)
-        # Step 1 Generate Refresh Token
-        access_token = self.__generate_sha__(client_id=oauth_token_request.client_id, value=token_str)
+    def __generate_access_refresh_token__(self, client_id: str, client_secret: str):
+        token_str = "%s:%s" % (client_secret, client_id)
         refresh_str = "%s:%s" % (token_str, "refresh")
+
+        # Step 1 Generate Refresh Token
+        refresh_token = self.__generate_sha__(key='refresh', value=refresh_str)
+
         # Step 2 Generate Access Token
-        refresh_token = self.__generate_sha__(client_id=oauth_token_request.client_id, value=refresh_str)
+        access_token = self.__generate_sha__(key='access', value=token_str)
+
         return access_token, refresh_token
+
+    # Refresh Token flow
+
+    def process_refresh_token_request(self, refresh_token_request: RefreshTokenRequest):
+        # Step 1 Validate authenticated client by id and secret
+        # Step 2 Check Token in Redis
+        # Step 3 Check refresh token mapping with client along with
+        # Step 4 Revoke earlier OAuth Token if exists
+        # Step 5 revoke the mapping between Refresh_token - OAuth_token - Client
+        # Step 5 Revoke earlier Refresh Token
+        # Step 6 Generate new Refresh token and Oauth token with same scope with which Refresh token was generated
+        # Step 7 Persist new refresh token and oauth token, with expiry.
+        # Step 8 return the new refresh and auth token
+
+        # Step 1 Validate authenticated client by id and secret
+        # Step 2 Check Token in Redis
+        # Step 3 Check refresh token mapping with client along with
+        self.__validate_refresh_token_request_(refresh_token_request)
+
+        # Step 4 Revoke earlier OAuth Token if exists
+        # Step 5 revoke the mapping between Refresh_token - OAuth_token - Client
+        # Step 5 Revoke earlier Refresh Token
+        self.__revoke_token_mappings__(refresh_token_request)
+
+        # Step 6 Generate new Refresh token and Oauth token with same scope with which Refresh token was generated
+        access_token, refresh_token = self.__generate_access_refresh_token__(client_id=refresh_token_request.client_id,
+                                                                             client_secret=refresh_token_request.client_secret)
+
+        oauth_response = AuthTokenResponse(access_token=access_token, refresh_token=refresh_token,
+                                           token_type='API-Access', expires=3600)
+
+        # Step 7 Persist new refresh token and oauth token, with expiry.
+        persist_token(redis_connection=self._redis_connection, client_id=refresh_token_request.client_id,
+                      oauth_response=oauth_response, auth_code=None,
+                      client_db=self._config_object.CLIENT_DB, auth_code_db=None)
+
+        return oauth_response
