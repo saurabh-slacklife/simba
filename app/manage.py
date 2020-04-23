@@ -6,6 +6,7 @@ from app.client.redis_client import RedisClient
 from app.config.config import ConfigType
 from app.routes import user
 from app.routes.oauth_routes.oauth_routes import oauth_route
+from app.routes.client_route import client_route
 
 from app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service, client_service
 
@@ -31,6 +32,7 @@ class ManageApp(object):
     def __register_blueprints__(self):
         self._simba_app.register_blueprint(blueprint=user.user_bp, url_prefix='/user')
         self._simba_app.register_blueprint(blueprint=oauth_route, url_prefix='/oauth')
+        self._simba_app.register_blueprint(blueprint=client_route, url_prefix='/client')
 
     def __register_services__(self, redis_client: RedisClient):
         user_service.init_service(redis_client=redis_client, config_object=self.config_object)
@@ -53,7 +55,6 @@ class ManageApp(object):
 manage_app = ManageApp()
 logger = manage_app.logger
 simba_flask_app = manage_app.get_simba_app
-
 
 
 @simba_flask_app.errorhandler(500)
