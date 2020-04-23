@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validate, RAISE, post_load
+from marshmallow import Schema, fields, RAISE, post_load
 
 
 class ClientRegisterResponse(Schema):
