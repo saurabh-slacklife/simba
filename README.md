@@ -1,4 +1,4 @@
-# [WIP] Simba - A Flask wireframe for OAuth 2.0 implementation backed by Redis and Elasticsearch
+# [WIP] Simba - A Flask OAuth 2.0 simple implementation backed by Redis and Elasticsearch
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg?style=plastic&color=brightgreen)](https://www.python.org/) [![Version 3.8.2](https://img.shields.io/badge/python-3.8.2-blue.svg?style=plastic&color=brightgreen)](https://www.python.org/downloads/release/python-382//)
 
@@ -57,6 +57,10 @@ docker run -p 5000:5000 --env-file ./env.dev PORT=5000 ripple.io:v1
 env.dev Sample
 ```.env
 SERVICE_ENV=dev
+REDIS_HOTS={redis_host}
+REDIS_PORT={redis_port}
+ELASTIC_SEARCH_HOST={es_host}
+ELASTIC_SEARCH_port={es_port}
 ```
 
 ### Using shell script
@@ -65,6 +69,10 @@ Run below commands to run the Microservice from shell script in background.
 
 ```shell script
 export SERVICE_ENV="dev" # Runs the application in Development configuration. Change to "qa" or "prod" based on environment.
+export REDIS_HOTS={redis_host} # Cluster Host or Single Instance host
+export REDIS_PORT={redis_port} # In case using single host
+export ELASTIC_SEARCH_HOST={es_host} # Cluster Host pr Single instance Host
+export ELASTIC_SEARCH_port={es_port} # In case using single host
 chmod +x start.sh
 nohup ./scripts/start.sh ${SERVICE_ENV} &
 ```

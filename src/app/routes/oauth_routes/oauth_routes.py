@@ -1,6 +1,6 @@
 import logging
 
-from flask import Blueprint, request, redirect, Response, jsonify
+from flask import Blueprint, request, redirect, Response
 
 from src.app.exception_handlers import BadRequestException, BaseUserException
 from src.app.extensions.dependency_extensions import oauth_service
@@ -39,17 +39,40 @@ def authorize_client():
     return redirect(uri, 302)
 
 
-@oauth_route.route('/token', methods=['POST', 'GET'])
+@oauth_route.route('/token', methods=['POST'])
 def auth_token_request() -> Response:
-    if request.method == 'POST':
-        oauth_token_request = AuthTokenRequest()
+    oauth_token_request = AuthTokenRequest()
 
-        oauth_token_request.client_secret = request.form['client_secret']
-        oauth_token_request.client_id = request.form['client_id']
+    oauth_token_request.client_secret = request.form['client_secret']
+    oauth_token_request.client_id = request.form['client_id']
+    oauth_token_request.redirect_uri = request.form['redirect_uri']
+
+    if not request.form['response_type']:
+        raise BadRequestException(message={'message': 'Invalid Response Type'})
+    elif 'code' != request.form['response_type'] and not request.form['code']:
+        raise BadRequestException(message={'message': 'Invalid Response Type'})
+    else:
         oauth_token_request.grant_type = request.form['grant_type']
         oauth_token_request.code = request.form['code']
-        oauth_token_request.redirect_uri = request.form['redirect_uri']
+        oauth_token_response = oauth_service.process_auth_token_request(oauth_token_request=oauth_token_request)
+        return AuthTokenResponseEncoder().encode(oauth_token_response)
 
+
+@oauth_route.route('/token/refresh', methods=['POST'])
+def token_refresh_request() -> Response:
+    oauth_token_request = AuthTokenRequest()
+
+    oauth_token_request.client_secret = request.form['client_secret']
+    oauth_token_request.client_id = request.form['client_id']
+    oauth_token_request.redirect_uri = request.form['redirect_uri']
+
+    if not request.form['grant_type']:
+        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+    elif 'refresh_token' != request.form['grant_type'] and not request.form['refresh_token']:
+        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+    else:
+        oauth_token_request.grant_type = request.form['grant_type']
+        oauth_token_request.code = request.form['refresh_token']
         oauth_token_response = oauth_service.process_auth_token_request(oauth_token_request=oauth_token_request)
         return AuthTokenResponseEncoder().encode(oauth_token_response)
 

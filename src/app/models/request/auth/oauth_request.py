@@ -35,3 +35,6 @@ class AuthTokenRequest(Schema):
     @post_load(pass_original=True)
     def oauth_session_post_load(self, data, **kwargs):
         return AuthTokenRequest(**data, **kwargs)
+
+# class RefreshTokenRequest(object):
+    # def __init__(self, refresh_token: str, ):
