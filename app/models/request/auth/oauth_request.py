@@ -1,7 +1,8 @@
+import functools
+
 from marshmallow import fields, Schema, RAISE, post_load, validates
 
-from src.app.exception_handlers import BadRequestException
-import functools
+from app.exception_handlers import BadRequestException
 
 
 class GrantAuthRequest(Schema):
@@ -43,35 +44,6 @@ class RefreshTokenRequest(object):
         self.refresh_token = refresh_token
         self.client_id = client_id
         self.client_secret = client_secret
-
-    # def __setattr__(self, attr, value):
-    #     if hasattr(self, attr):
-    #         raise Exception("Attempting to alter read-only value")
-    #     self.__dict__[attr] = value
-
-    @property
-    def refresh_token(self):
-        return self.refresh_token
-
-    @refresh_token.setter
-    def set_refresh_token(self, value):
-        raise ValueError(f'can\'t modify Refresh token')
-
-    @property
-    def client_id(self):
-        return self.client_id
-
-    @client_id.setter
-    def set_client_id(self, client_id):
-        raise ValueError(f'can\'t modify Client ID')
-
-    @property
-    def client_secret(self):
-        return self.client_secret
-
-    @client_secret.setter
-    def set_client_secret(self, client_secret):
-        raise ValueError(f'can\'t modify Client ID')
 
 
 def field_validator(func):

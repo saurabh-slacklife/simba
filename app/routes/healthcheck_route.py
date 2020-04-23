@@ -1,5 +1,5 @@
 from flask import Blueprint, Response, jsonify
-from src.app.extensions.dependency_extensions import redis_health_service
+from app.extensions.dependency_extensions import redis_health_service
 
 redis_health_route = Blueprint('RedisHealth', __name__)
 

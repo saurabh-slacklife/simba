@@ -11,7 +11,7 @@ if [[ -n ${1} ]]; then
   touch /var/log/simba/access.log
   touch /var/log/simba/application.log
   touch /var/log/simba/error.log
-  exec gunicorn --bind "0.0.0.0:5000" main.app:simba_flask_app \
+  exec gunicorn --bind "0.0.0.0:5000" app.manage:simba_flask_app \
     --disable-redirect-access-to-syslog \
     --capture-output \
     --error-logfile /var/log/simba/error.log \

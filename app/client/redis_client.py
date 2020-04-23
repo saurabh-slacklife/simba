@@ -1,7 +1,7 @@
 from redis import BlockingConnectionPool, Connection
 from redis import Redis
 
-from src.app.config.config import BaseConfig
+from app.config.config import BaseConfig
 import os
 
 

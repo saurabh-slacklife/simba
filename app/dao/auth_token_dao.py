@@ -4,8 +4,8 @@ from typing import List
 from redis import WatchError
 from redis.client import Pipeline
 
-from src.app.models.request.auth.oauth_request import AuthTokenRequest
-from src.app.models.response.auth_token.oauth_response import AuthTokenResponse
+from app.models.request.auth.oauth_request import AuthTokenRequest, RefreshTokenRequest
+from app.models.response.auth_token.oauth_response import AuthTokenResponse
 
 logger = logging.getLogger('gunicorn.error')
 
@@ -33,10 +33,11 @@ def save_auth_refresh_token(redis_connection,
 
         redis_set_query_pipe(pipe=pipe, name=oauth_response.access_token, value='VALID', expire=3600,
                              db=client_db)
-        redis_set_query_pipe(pipe=pipe, name=oauth_response.refresh_token, value='VALID', expire=36000,
+        redis_set_query_pipe(pipe=pipe, name=oauth_response.refresh_token, value=oauth_response.access_token,
+                             expire=36000,
                              db=client_db)
 
-        if not auth_code and not auth_code_db:
+        if auth_code and auth_code_db:
             redis_remove_query_pipeline(pipe=pipe, name=auth_code, db=auth_code_db)
 
         pipe.execute()
@@ -90,6 +91,43 @@ def fetch_auth_code_client_info(redis_connection, oauth_token_request: AuthToken
             pipe.execute_command('SELECT', db_2)
             pipe.hmget(oauth_token_request.client_id, 'client_secret',
                        'redirect_uri')
+            return pipe.execute()
+        except WatchError:
+            logger.error(exc_info=True)
+
+
+def fetch_refresh_token_client_info(redis_connection,
+                                    refresh_token_request: RefreshTokenRequest,
+                                    client_db: int):
+    client_refresh_token_key = '%s:%s' % (refresh_token_request.client_id, 'refresh_token')
+
+    with redis_connection.pipeline() as pipe:
+        try:
+            pipe.execute_command('SELECT', client_db)
+            pipe.get(refresh_token_request.refresh_token)
+            pipe.sismember(client_refresh_token_key, refresh_token_request.refresh_token)
+            pipe.hmget(refresh_token_request.client_id, 'client_secret',
+                       'client_secret')
+            return pipe.execute()
+        except WatchError:
+            logger.error(exc_info=True)
+
+
+def revoke_access_refresh_token(redis_connection,
+                                refresh_token_request: RefreshTokenRequest,
+                                persisted_access_token: str,
+                                client_db: int):
+    client_refresh_token_key = '%s:%s' % (refresh_token_request.client_id, 'refresh_token')
+    client_access_token_key = '%s:%s' % (refresh_token_request.client_id, 'access_token')
+
+    with redis_connection.pipeline() as pipe:
+        try:
+            pipe.execute_command('SELECT', client_db)
+            #  returns 1 on success
+            pipe.delete(refresh_token_request.refresh_token, persisted_access_token)
+            #  returns 1 on success
+            pipe.srem(client_refresh_token_key, refresh_token_request.refresh_token)
+            pipe.srem(client_access_token_key, persisted_access_token)
             return pipe.execute()
         except WatchError:
             logger.error(exc_info=True)

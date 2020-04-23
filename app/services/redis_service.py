@@ -2,7 +2,7 @@
 
 from redis import Redis, RedisError
 
-from src.app.models.response.health import Health
+from app.models.response.health import Health
 
 
 class RedisHealthService:

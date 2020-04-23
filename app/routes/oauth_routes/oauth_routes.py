@@ -2,10 +2,10 @@ import logging
 
 from flask import Blueprint, request, redirect, Response
 
-from src.app.exception_handlers import BadRequestException, BaseUserException
-from src.app.extensions.dependency_extensions import oauth_service
-from src.app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
-from src.app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
+from app.exception_handlers import BadRequestException, BaseUserException
+from app.extensions.dependency_extensions import oauth_service
+from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
+from app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
 
 logger = logging.getLogger('gunicorn.error')
 
@@ -47,10 +47,10 @@ def auth_token_request() -> Response:
     oauth_token_request.client_id = request.form['client_id']
     oauth_token_request.redirect_uri = request.form['redirect_uri']
 
-    if not request.form['response_type']:
-        raise BadRequestException(message={'message': 'Invalid Response Type'})
-    elif 'code' != request.form['response_type'] and not request.form['code']:
-        raise BadRequestException(message={'message': 'Invalid Response Type'})
+    if not request.form['grant_type']:
+        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+    elif 'authorization_code' != request.form['grant_type'] and not request.form['code']:
+        raise BadRequestException(message={'message': 'Invalid Grant Type'})
     else:
         oauth_token_request.grant_type = request.form['grant_type']
         oauth_token_request.code = request.form['code']
@@ -60,33 +60,30 @@ def auth_token_request() -> Response:
 
 @oauth_route.route('/token/refresh', methods=['POST'])
 def token_refresh_request() -> Response:
-    refresh_token_request = RefreshTokenRequest()
-
-    refresh_token_request.client_secret = request.form['client_secret']
-    refresh_token_request.client_id = request.form['client_id']
-
     if not request.form['grant_type']:
         raise BadRequestException(message={'message': 'Invalid Grant Type'})
     elif 'refresh_token' != request.form['grant_type'] and not request.form['refresh_token']:
         raise BadRequestException(message={'message': 'Invalid Grant Type'})
     else:
-        refresh_token_request.grant_type = request.form['grant_type']
-        refresh_token_request.code = request.form['refresh_token']
+        refresh_token_request = RefreshTokenRequest(client_id=request.form['client_id'],
+                                                    client_secret=request.form['client_secret'],
+                                                    refresh_token=request.form['refresh_token'])
         oauth_token_response = oauth_service.process_refresh_token_request(refresh_token_request=refresh_token_request)
         return AuthTokenResponseEncoder().encode(oauth_token_response)
 
 
 @oauth_route.before_request
 def validate_header():
-    req_headers = request.headers
-    req_content_type = req_headers.get(key='Content-Type')
+    req_content_type = request.content_type
     if not req_content_type:
+        logger.error(f'Invalid Content Type: {request.content_type}')
         raise BadRequestException(message={'message': 'Invalid Content Type'})
     elif (req_content_type == 'application/x-www-form-urlencoded;charset=utf-8'
           or req_content_type == 'application/x-www-form-urlencoded'):
         pass
     else:
-        raise BadRequestException(message={'message': 'Invalid Content Type'})
+        logger.error(f'Invalid Content Type: {request.content_type}')
+        raise BadRequestException(message={'message': f'Invalid Content Type: {request.content_type}'})
 
 
 @oauth_route.after_request
@@ -94,6 +91,7 @@ def add_header(response):
     response.headers['Content-Type'] = 'application/json;charset=utf-8'
     response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
+    response.encoding = 'utf-8'
     return response
 
 

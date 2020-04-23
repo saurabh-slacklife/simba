@@ -2,12 +2,12 @@ import logging
 import os
 from flask import Flask
 
-from src.app.client.redis_client import RedisClient
-from src.app.config.config import ConfigType
-from src.app.routes import user
-from src.app.routes.oauth_routes.oauth_routes import oauth_route
+from app.client.redis_client import RedisClient
+from app.config.config import ConfigType
+from app.routes import user
+from app.routes.oauth_routes.oauth_routes import oauth_route
 
-from src.app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service
+from app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service
 
 
 class ManageApp(object):
@@ -35,7 +35,7 @@ class ManageApp(object):
         user_service.init_service(redis_client=redis_client, config_object=self.config_object)
         oauth_service.init_service(redis_client=redis_client, config_object=self.config_object)
 
-        from src.app.models.response.health import Health
+        from app.models.response.health import Health
 
         redis_health_service.init_service(redis_client=redis_client, health=Health())
 
@@ -47,3 +47,13 @@ class ManageApp(object):
     @property
     def get_simba_app(self):
         return self._simba_app
+
+
+manage_app = ManageApp()
+
+simba_flask_app = manage_app.get_simba_app
+
+
+@simba_flask_app.errorhandler(500)
+def handle_500(error):
+    return "It's Okay! Life is funny at times"

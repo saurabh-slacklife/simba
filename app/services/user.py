@@ -1,5 +1,5 @@
-from src.app.client.redis_client import RedisClient
-from src.app.config.config import ConfigType
+from app.client.redis_client import RedisClient
+from app.config.config import ConfigType
 
 
 class UserService(object):

@@ -1,6 +1,6 @@
 from flask import Blueprint
 
-from src.app.extensions.dependency_extensions import user_service
+from app.extensions.dependency_extensions import user_service
 
 user_bp = Blueprint("User", __name__)
 
