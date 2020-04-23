@@ -9,7 +9,7 @@ from app.config.config import ConfigType
 from app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
 from app.dao.auth_token_dao import fetch_refresh_token_client_info, revoke_access_refresh_token
 from app.dao.auth_token_dao import redis_get_client_info
-from app.exception_handlers import OperationNotAllowedException, BadRequestException
+from app.exception_handlers import OperationNotAllowedException, BadRequestException, UnAuthorized
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponse
 
@@ -84,7 +84,7 @@ class OAuthService(object):
 
             return oauth_response
         else:
-            raise BadRequestException(message='Invalid Client Id')
+            raise UnAuthorized(message='Invalid Client Id')
 
     def __is_token_request_valid__(self, oauth_token_request: AuthTokenRequest):
         response_list = fetch_auth_code_client_info(redis_connection=self._redis_connection,
@@ -96,7 +96,7 @@ class OAuthService(object):
 
         if len(response_list) == 4:
             if response_list[1] is None:
-                raise BadRequestException(message='Invalid Auth Code')
+                raise UnAuthorized(message='Invalid Auth Code')
             else:
                 persisted_client_id = response_list[1].decode('utf-8')
                 client_id = oauth_token_request.client_id
@@ -113,9 +113,9 @@ class OAuthService(object):
                     else:
                         raise BadRequestException(message='Invalid client information')
                 else:
-                    raise BadRequestException(message='Invalid Auth Code or Client Id combination')
+                    raise UnAuthorized(message='Invalid Auth Code or Client Id combination')
         else:
-            raise BadRequestException(message='Invalid Auth Code or Client Id combination')
+            raise UnAuthorized(message='Invalid Auth Code or Client Id combination')
 
     def __generate_access_refresh_token__(self, client_id: str, client_secret: str):
         token_str = "%s:%s" % (client_secret, client_id)
@@ -188,11 +188,11 @@ class OAuthService(object):
                     raise BadRequestException(f'Invalid Refresh token  ')
             else:
                 logger.error(f'Refresh Token doesn\'t exists')
-                raise BadRequestException(f'Invalid Refresh token  ')
+                raise UnAuthorized(f'Invalid Refresh token  ')
         else:
             logger.error(
                 f'No mapping exists between: Client Id: {refresh_token_request.client_id}, refresh Token: {refresh_token_request.refresh_token}')
-            raise BadRequestException(f'Invalid Refresh token  ')
+            raise UnAuthorized(f'Invalid Refresh token  ')
 
     def __revoke_token_mappings__(self, refresh_token_request: RefreshTokenRequest, persisted_access_token: str):
         # Step 4 Revoke earlier OAuth Token if exists

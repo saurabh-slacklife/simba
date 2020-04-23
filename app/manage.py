@@ -7,7 +7,7 @@ from app.config.config import ConfigType
 from app.routes import user
 from app.routes.oauth_routes.oauth_routes import oauth_route
 
-from app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service
+from app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service, client_service
 
 
 class ManageApp(object):
@@ -18,6 +18,7 @@ class ManageApp(object):
 
         self._simba_app = Flask('config', template_folder=None, static_folder=None)
         self._simba_app.config.from_object(self.config_object)
+        self.logger = logging.getLogger('gunicorn.error')
 
         self.initialize_app()
 
@@ -34,6 +35,7 @@ class ManageApp(object):
     def __register_services__(self, redis_client: RedisClient):
         user_service.init_service(redis_client=redis_client, config_object=self.config_object)
         oauth_service.init_service(redis_client=redis_client, config_object=self.config_object)
+        client_service.init_service(redis_client=redis_client, config_object=self.config_object)
 
         from app.models.response.health import Health
 
@@ -41,8 +43,7 @@ class ManageApp(object):
 
     @property
     def logger(self):
-        logger = logging.getLogger()
-        return logger
+        return self.logger
 
     @property
     def get_simba_app(self):
@@ -50,8 +51,9 @@ class ManageApp(object):
 
 
 manage_app = ManageApp()
-
+logger = manage_app.logger
 simba_flask_app = manage_app.get_simba_app
+
 
 
 @simba_flask_app.errorhandler(500)

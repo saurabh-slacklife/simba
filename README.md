@@ -1,6 +1,6 @@
 # [WIP] Simba - A Flask OAuth 2.0 simple implementation backed by Redis and Elasticsearch
 
-[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg?style=plastic&color=brightgreen)](https://www.python.org/) [![Version 3.8.2](https://img.shields.io/badge/python-3.8.2-blue.svg?style=plastic&color=brightgreen)](https://www.python.org/downloads/release/python-382//)
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg?style=plastic&color=brightgreen)](https://www.python.org/) [![Version 3.8.2](https://img.shields.io/badge/python-3.8.2-blue.svg?style=plastic&color=brightgreen)](https://www.python.org/downloads/release/python-382/)
 
 ![Docker Build](https://github.com/saurabh-slacklife/simba/workflows/Docker%20Build/badge.svg)
 
