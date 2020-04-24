@@ -8,3 +8,7 @@
 # @simba_flask_app.errorhandler(500)
 # def handle_500(error):
 #     return "It's Okay! Life is funny at times"
+
+import logging
+
+logger = logging.getLogger('gunicorn.error')
