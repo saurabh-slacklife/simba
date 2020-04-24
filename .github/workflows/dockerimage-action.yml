@@ -1,15 +1,22 @@
 name: Docker Build
 
 on:
+  pull_request:
   push:
     branches:
       - master
       - feature/*
+  release:
+    types: [published, created, edited]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: {{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latetst, windows-latest, macos-latest]
+      fail-fast: false
     steps:
-    - uses: actions/checkout@master
     - name: Build the Docker image
+    - uses: actions/checkout@master
       run: docker build . --file container/Dockerfile-dev --tag simba:$(date +%s)
