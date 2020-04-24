@@ -17,6 +17,6 @@ jobs:
         os: [ubuntu-latetst, windows-latest, macos-latest]
       fail-fast: false
     steps:
-    - name: Build the Docker image
-    - uses: actions/checkout@master
-      run: docker build . --file container/Dockerfile-dev --tag simba:$(date +%s)
+      - uses: actions/checkout@master
+      - name: Build the Docker image
+        run: docker build . --file container/Dockerfile-dev --tag simba:$(date +%s)
