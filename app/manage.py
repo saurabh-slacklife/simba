@@ -1,6 +1,6 @@
 import os
 from flask import Flask
-
+from app import logger
 from app.client.redis_client import RedisClient
 from app.client.elasticsearch_client import ElasticSearchClient
 from app.config.config import ConfigType

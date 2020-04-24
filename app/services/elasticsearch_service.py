@@ -1,8 +1,6 @@
 from elasticsearch.client import Elasticsearch as es
-import logging
 from app.config.config import ConfigType
-
-logger = logging.getLogger('gunicorn.error')
+from app import logger
 
 
 class ElasticSearchService(object):

@@ -1,13 +1,10 @@
-import logging
 from typing import List
-
+from app import logger
 from redis import WatchError
 from redis.client import Pipeline
 
 from app.models.request.auth.oauth_request import AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponse
-
-logger = logging.getLogger('gunicorn.error')
 
 
 def persist_token(redis_connection, client_id: str, client_db: int, auth_code_db: int,

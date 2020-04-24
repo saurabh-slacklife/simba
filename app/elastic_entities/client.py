@@ -2,12 +2,15 @@ from elasticsearch_dsl import Document, Text, Keyword, Nested
 
 
 class ClientEntity(Document):
-    client_name = Text(fields={'keyword': Keyword()}, required=True)
-    client_id = Text(fields={'keyword': Keyword()}, required=True)
-    client_token = Text(fields={'Keyword': Keyword()}, required=True)
-    client_secret = Text(fields={'Keyword': Keyword()}, required=True)
-    roles = Nested(Text(), required=True)
-    scopes = Nested(Text(), required=True)
+    client_name = Text(fields={'keyword': Keyword()}, required=False)
+    client_id = Text(fields={'keyword': Keyword()}, required=False)
+    email = Text(fields={'keyword': Keyword()}, required=False)
+    website = Text(fields={'keyword': Keyword()}, required=False)
+    contact_number = Text(fields={'keyword': Keyword()}, required=False)
+    client_token = Text(fields={'Keyword': Keyword()}, required=False)
+    client_secret = Text(fields={'Keyword': Keyword()}, required=False)
+    # roles = Nested(Text(), required=True)
+    # scopes = Nested(Text(), required=True)
 
     class Index:
         name = 'client-test'

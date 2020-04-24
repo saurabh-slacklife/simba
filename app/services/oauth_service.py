@@ -12,8 +12,7 @@ from app.dao.auth_token_dao import redis_get_client_info
 from app.exception_handlers import OperationNotAllowedException, BadRequestException, UnAuthorized
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponse
-
-logger = logging.getLogger('gunicorn.error')
+from app import logger
 
 
 class OAuthService(object):

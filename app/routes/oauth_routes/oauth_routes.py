@@ -1,4 +1,4 @@
-import logging
+from app import logger
 
 from flask import Blueprint, request, redirect, Response
 
@@ -6,8 +6,6 @@ from app.exception_handlers import BadRequestException, BaseUserException
 from app.extensions.dependency_extensions import oauth_service
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
-
-logger = logging.getLogger('gunicorn.error')
 
 oauth_route = Blueprint("Oauth", __name__)
 
@@ -72,7 +70,7 @@ def token_refresh_request() -> Response:
         return AuthTokenResponseEncoder().encode(oauth_token_response)
 
 
-@oauth_route.before_request
+# @oauth_route.before_request
 def validate_header():
     req_content_type = request.content_type
     if not req_content_type:

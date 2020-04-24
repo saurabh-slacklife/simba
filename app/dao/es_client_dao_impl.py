@@ -1,7 +1,7 @@
 from app.dao.elastic_entity_dao import ElasticEntityDao
 from elasticsearch import Elasticsearch
 from app.elastic_entities.client import ClientEntity
-
+from app import logger
 
 class EsClientDaoImp(ElasticEntityDao):
     def __init__(self, es_connection: Elasticsearch):

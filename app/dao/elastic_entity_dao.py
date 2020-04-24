@@ -1,5 +1,6 @@
 from elasticsearch_dsl import Document
 from elasticsearch import Elasticsearch
+from app import logger
 
 
 class ElasticEntityDao(object):
