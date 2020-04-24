@@ -14,9 +14,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latetst, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
       fail-fast: false
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Build the Docker image
         run: docker build . --file container/Dockerfile-dev --tag simba:$(date +%s)
