@@ -1,4 +1,4 @@
-from flask import Blueprint, request, Response
+from flask import Blueprint, request, Response, json
 # from app import logger
 from app.extensions.dependency_extensions import client_service as cs
 from app.elastic_entities.client import ClientEntity
@@ -13,30 +13,33 @@ client_route = Blueprint("Client", __name__)
 
 @client_route.route('/', methods=['PUT'])
 def register_client() -> Response:
-    client_entity = validate_request(rq=request)
+    req_data = request.json
+
+    client_entity = __validate_request__(req_data)
 
     doc_status, doc_meta = cs.create_client(client_entity)
 
-    return request.form.get('client_name', default='something')
+    return {'status': doc_status,
+            'id': doc_meta.id}
 
 
-def validate_request(rq: request):
+def __validate_request__(req_data):
     invalid_request_dict = {}
-    if not request.form['client_name']:
-        invalid_request_dict['client_name'] = rq.form['client_name']
-    if not request.form['email']:
-        invalid_request_dict['email'] = rq.form['email']
-    if not request.form['web_url']:
-        invalid_request_dict['web_url'] = rq.form['web_url']
-    if not request.form['contact_number']:
-        invalid_request_dict['contact_number'] = rq.form['contact_form']
+    if req_data.get('client_name') is None:
+        invalid_request_dict['client_name'] = None
+    if req_data.get('email') is None:
+        invalid_request_dict['email'] = None
+    if req_data.get('website') is None:
+        invalid_request_dict['web_url'] = None
+    if req_data.get('contact_number') is None:
+        invalid_request_dict['contact_number'] = None
 
     if len(invalid_request_dict.items()) > 0:
         logger.error(f'Invalid request: {invalid_request_dict}')
         raise BadRequestException(message=f'Invalid request: {invalid_request_dict}')
 
-    client_entity = ClientEntity(client_name=rq.form['client_name'], email=rq.form['email'],
-                                 website=rq.form['web_url'], contact_number=rq.form['contact_number'],
+    client_entity = ClientEntity(client_name=req_data.get('client_name'), email=req_data.get('email'),
+                                 website=req_data.get('website'), contact_number=req_data.get('contact_number'),
                                  )
     return client_entity
 
