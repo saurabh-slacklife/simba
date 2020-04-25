@@ -1,16 +1,34 @@
-from marshmallow import Schema, fields, validates, post_load, RAISE
+from json import JSONEncoder
+import json
 
 
-class OpenApiResponse(Schema):
-    rel = fields.String(required=True, error_messages={"required": {"message": "rel required", "code": 400}})
-    uri = fields.String(required=True, error_messages={"required": {"message": "uri required", "code": 400}})
-    action = fields.String(required=True, error_messages={"required": {"message": "action required", "code": 400}})
-    types = fields.String(many=True, required=True,
-                          error_messages={"required": {"message": "types required", "code": 400}})
+class OpenApiResponse(object):
+    def __init__(self, rel: str, uri: str, action: str, types: str):
+        self.rel = rel
+        self.uri = uri
+        self.action = action
+        self.types = types
 
-    class Meta:
-        unknown = RAISE
+    @property
+    def get_uri(self):
+        return self.uri
 
-    @post_load
-    def openapi_response__post_load(self, data, **kwargs):
-        return OpenApiResponse(**data)
+    @property
+    def get_rel(self):
+        return self.rel
+
+    @property
+    def get_action(self):
+        return self.action
+
+    @property
+    def get_types(self):
+        return self.types
+
+
+class OpenApiResponseEncoder(JSONEncoder):
+    def default(self, o: OpenApiResponse) -> OpenApiResponse:
+        if isinstance(o, OpenApiResponse):
+            return o.__dict__
+        else:
+            json.JSONEncoder.default(self, o)

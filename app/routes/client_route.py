@@ -1,12 +1,9 @@
-from flask import Blueprint, request, Response, json
-# from app import logger
+from flask import Blueprint, request, Response
+from app import logger
 from app.extensions.dependency_extensions import client_service as cs
 from app.elastic_entities.client import ClientEntity
 from app.exception_handlers import BadRequestException, BaseUserException
-
-import logging
-
-logger = logging.getLogger('gunicorn.error')
+from app.models.response.openapi_response import OpenApiResponse, OpenApiResponseEncoder
 
 client_route = Blueprint("Client", __name__)
 
@@ -19,8 +16,12 @@ def register_client() -> Response:
 
     doc_status, doc_meta = cs.create_client(client_entity)
 
-    return {'status': doc_status,
-            'id': doc_meta.id}
+    if doc_status == 'created' and doc_meta.id is not None:
+        uri = f"/client/?email={req_data.get('email')}"
+        resp = OpenApiResponse(rel='Client APP', uri=uri, action='GET', types='application/json')
+        return OpenApiResponseEncoder().encode(resp)
+    else:
+        return Response(doc_status)
 
 
 def __validate_request__(req_data):
@@ -46,6 +47,10 @@ def __validate_request__(req_data):
 
 @client_route.route('/', methods=['GET'])
 def client_info():
+    req_args = request.args
+
+    if not req_args.get('email'):
+        raise BadRequestException(message={'message': 'Invalid Email.'})
     return 'info'
 
 
