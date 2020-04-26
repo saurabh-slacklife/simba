@@ -1,4 +1,4 @@
-from flask import Blueprint, request, Response
+from flask import Blueprint, request, Response, jsonify
 from app import logger
 from app.extensions.dependency_extensions import client_service as cs
 from app.elastic_entities.client import ClientEntity
@@ -30,6 +30,9 @@ def find_client() -> Response:
     email = req_args.get('email')
     contact_number = req_args.get('contact_number')
 
+    logger.info(f'Request Contact_number: {contact_number} and type: {type(contact_number)}')
+    logger.info(f'Request email: {email} and type: {type(email)}')
+
     if not email and not contact_number:
         raise BadRequest(message={'ErrorMessage': 'Invalid query parameters.'})
 
@@ -37,7 +40,7 @@ def find_client() -> Response:
     if response == 0:
         raise ResourceNotFound(message={'ErrorMessage': 'Not found with provided query parameters.'})
     else:
-        return response
+        return jsonify(response)
 
 
 @client_route.route('/', methods=['POST'])

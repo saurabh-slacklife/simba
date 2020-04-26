@@ -6,7 +6,7 @@ class ClientEntity(Document):
     client_id = Keyword(required=True)
     email = Keyword(required=True)
     website = Text(required=True)
-    contact_number = Keyword(fields={'type': Integer()}, required=True)
+    contact_number = Integer(fields={'type': Keyword()}, required=True)
     client_token = Text(required=True)
     client_secret = Text(required=True)
     roles = Text(required=False)

@@ -1,5 +1,5 @@
 from app import logger
-
+from datetime import datetime as dt
 from elasticsearch import Elasticsearch
 from redis import Redis
 
@@ -9,6 +9,7 @@ from app.config.config import ConfigType
 from app.dao.es_client_dao_impl import EsClientDaoImp
 from app.elastic_entities.client import ClientEntity
 from app.exception_handlers import RequestConflict
+from hashlib import sha256, md5
 
 
 class ClientService(object):
@@ -26,13 +27,13 @@ class ClientService(object):
         self._config_object = config_object
         self.client_dao = EsClientDaoImp(self._elastic_connection)
 
-    def search(self, email: str, contact_number: str):
+    def search(self, email: str, contact_number: int):
 
         if email and contact_number:
             return self.client_dao.search_by_email_and_contact_number(email=email, contact_number=contact_number)
         elif email:
             return self.client_dao.search_by_email(email)
-        else:
+        elif contact_number:
             return self.client_dao.search_by_contact_number(contact_number=contact_number)
 
     def update(self):
@@ -46,6 +47,19 @@ class ClientService(object):
         if response_list and len(response_list) > 0:
             raise RequestConflict(message={'message': 'Client already exists with similar email or contact number'})
         else:
+            self.generate_hashes(client_entity)
+
             doc_status, doc_meta = self.client_dao.save(client_entity)
             logger.info(f'Persisted - doc_status: {doc_status} and doc_meta: {doc_meta}')
             return doc_status, doc_meta
+
+    def generate_hashes(self, client_entity):
+        id_hash_string = f'{client_entity.email}:{client_entity.contact_number}'
+        client_id = sha256(id_hash_string.encode('utf-8')).hexdigest()
+        token_hash_string = f'{id_hash_string}:{dt.utcnow()}'
+        client_token = sha256(token_hash_string.encode('utf-8')).hexdigest()
+        secret_md5_string = f'{client_token}:{dt.utcnow()}'
+        client_secret = md5(secret_md5_string.encode('utf-8')).hexdigest()
+        client_entity.client_id = client_id
+        client_entity.client_token = client_token
+        client_entity.client_secret = client_secret
