@@ -2,7 +2,7 @@ from app import logger
 
 from flask import Blueprint, request, redirect, Response
 
-from app.exception_handlers import BadRequestException, BaseUserException
+from app.exception_handlers import BadRequest, BaseUserException
 from app.extensions.dependency_extensions import oauth_service
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
@@ -15,13 +15,13 @@ def authorize_client():
     req_args = request.args
 
     if not req_args.get('response_type') and req_args.get('response_type') != 'code':
-        raise BadRequestException(message={'message': 'Invalid response_type'})
+        raise BadRequest(message={'message': 'Invalid response_type'})
     if not req_args.get('scope'):
-        raise BadRequestException(message={'message': 'Invalid scope'})
+        raise BadRequest(message={'message': 'Invalid scope'})
     if not req_args.get('client_id'):
-        raise BadRequestException(message={'message': 'Invalid client_id'})
+        raise BadRequest(message={'message': 'Invalid client_id'})
     if not req_args.get('state'):
-        raise BadRequestException(message={'message': 'state'})
+        raise BadRequest(message={'message': 'state'})
 
     oauth_grant_code_request = GrantAuthRequest()
     oauth_grant_code_request.grant_type = req_args.get('response_type')
@@ -46,9 +46,9 @@ def auth_token_request() -> Response:
     oauth_token_request.redirect_uri = request.form['redirect_uri']
 
     if not request.form['grant_type']:
-        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+        raise BadRequest(message={'message': 'Invalid Grant Type'})
     elif 'authorization_code' != request.form['grant_type'] and not request.form['code']:
-        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+        raise BadRequest(message={'message': 'Invalid Grant Type'})
     else:
         oauth_token_request.grant_type = request.form['grant_type']
         oauth_token_request.code = request.form['code']
@@ -59,9 +59,9 @@ def auth_token_request() -> Response:
 @oauth_route.route('/token/refresh', methods=['POST'])
 def token_refresh_request() -> Response:
     if not request.form['grant_type']:
-        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+        raise BadRequest(message={'message': 'Invalid Grant Type'})
     elif 'refresh_token' != request.form['grant_type'] and not request.form['refresh_token']:
-        raise BadRequestException(message={'message': 'Invalid Grant Type'})
+        raise BadRequest(message={'message': 'Invalid Grant Type'})
     else:
         refresh_token_request = RefreshTokenRequest(client_id=request.form['client_id'],
                                                     client_secret=request.form['client_secret'],
@@ -75,13 +75,13 @@ def validate_header():
     req_content_type = request.content_type
     if not req_content_type:
         logger.error(f'Invalid Content Type: {request.content_type}')
-        raise BadRequestException(message={'message': 'Invalid Content Type'})
+        raise BadRequest(message={'message': 'Invalid Content Type'})
     elif (req_content_type == 'application/x-www-form-urlencoded;charset=utf-8'
           or req_content_type == 'application/x-www-form-urlencoded'):
         pass
     else:
         logger.error(f'Invalid Content Type: {request.content_type}')
-        raise BadRequestException(message={'message': f'Invalid Content Type: {request.content_type}'})
+        raise BadRequest(message={'message': f'Invalid Content Type: {request.content_type}'})
 
 
 @oauth_route.after_request

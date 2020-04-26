@@ -13,7 +13,11 @@ class TestRefreshTokenRequest(TestCase):
         self.assertEqual(refresh_token_request.refresh_token, 'refresh_token', 'Assertion failed for Refresh Token')
 
     def test_set_refresh_token(self):
-        self.fail()
+        email = 'something'
+        template = {"match": {"email": {"query": email, "operator": "and"}}}
+        body = {"query": template}
+
+        print(body)
 
     def test_client_id(self):
         self.fail()
@@ -26,3 +30,4 @@ class TestRefreshTokenRequest(TestCase):
 
     def test_set_client_secret(self):
         self.fail()
+

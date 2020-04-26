@@ -14,9 +14,9 @@ class BaseUserException(Exception):
         return response
 
 
-class BadRequestException(BaseUserException):
+class BadRequest(BaseUserException):
     def __init__(self, message, headers=None):
-        super(BadRequestException, self).__init__(message, 400, headers)
+        super(BadRequest, self).__init__(message, 400, headers)
 
 
 class UnAuthorized(BaseUserException):
@@ -32,3 +32,8 @@ class InvalidRequest(BaseUserException):
 class OperationNotAllowedException(BaseUserException):
     def __init__(self, message, headers=None):
         super(OperationNotAllowedException, self).__init__(message, 403, headers)
+
+
+class ResourceNotFound(BaseUserException):
+    def __init__(self, message, headers=None):
+        super(ResourceNotFound, self).__init__(message, 404, headers)

@@ -2,7 +2,7 @@ from flask import Blueprint, request, Response
 from app import logger
 from app.extensions.dependency_extensions import client_service as cs
 from app.elastic_entities.client import ClientEntity
-from app.exception_handlers import BadRequestException, BaseUserException
+from app.exception_handlers import BadRequest, BaseUserException, ResourceNotFound
 from app.models.response.openapi_response import OpenApiResponse, OpenApiResponseEncoder
 
 client_route = Blueprint("Client", __name__)
@@ -14,7 +14,7 @@ def register_client() -> Response:
 
     client_entity = __validate_request__(req_data)
 
-    doc_status, doc_meta = cs.create_client(client_entity)
+    doc_status, doc_meta = cs.register_client(client_entity)
 
     if doc_status == 'created' and doc_meta.id is not None:
         uri = f"/client/?email={req_data.get('email')}"
@@ -37,7 +37,7 @@ def __validate_request__(req_data):
 
     if len(invalid_request_dict.items()) > 0:
         logger.error(f'Invalid request: {invalid_request_dict}')
-        raise BadRequestException(message=f'Invalid request: {invalid_request_dict}')
+        raise BadRequest(message=f'Invalid request: {invalid_request_dict}')
 
     client_entity = ClientEntity(client_name=req_data.get('client_name'), email=req_data.get('email'),
                                  website=req_data.get('website'), contact_number=req_data.get('contact_number'),
@@ -48,10 +48,17 @@ def __validate_request__(req_data):
 @client_route.route('/', methods=['GET'])
 def client_info():
     req_args = request.args
+    email = req_args.get('email')
+    contact_number = req_args.get('contact_number')
 
-    if not req_args.get('email'):
-        raise BadRequestException(message={'message': 'Invalid Email.'})
-    return 'info'
+    if not email and not contact_number:
+        raise BadRequest(message={'message': 'Invalid query parameters.'})
+
+    response = cs.search_client(email=email, contact_number=contact_number)
+    if response == 0:
+        raise ResourceNotFound(message=f'No Client found with provided query parameters')
+    else:
+        return response
 
 
 @client_route.route('/', methods=['POST'])

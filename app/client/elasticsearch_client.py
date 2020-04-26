@@ -17,7 +17,7 @@ class ElasticSearchClient(object):
             raise RuntimeError('Please set ELASTIC_HOST with Host in config %s', os.environ.get('ELASTIC_HOST'))
 
         logger.info(f'Config Object: {self.app_config}')
-        self._elastic_connection = self.create_client()
+        self._elastic_connection: Elasticsearch = self.create_client()
 
     def create_client(self) -> Elasticsearch:
         elasticsearch_client = Elasticsearch(hosts=os.environ.get('ELASTIC_HOST'),
@@ -33,5 +33,5 @@ class ElasticSearchClient(object):
         return elasticsearch_client
 
     @property
-    def elastic_connection(self):
+    def elastic_connection(self) -> Elasticsearch:
         return self._elastic_connection

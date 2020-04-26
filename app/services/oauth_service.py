@@ -9,7 +9,7 @@ from app.config.config import ConfigType
 from app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
 from app.dao.auth_token_dao import fetch_refresh_token_client_info, revoke_access_refresh_token
 from app.dao.auth_token_dao import redis_get_client_info
-from app.exception_handlers import OperationNotAllowedException, BadRequestException, UnAuthorized
+from app.exception_handlers import OperationNotAllowedException, BadRequest, UnAuthorized
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponse
 from app import logger
@@ -108,9 +108,9 @@ class OAuthService(object):
                                 oauth_token_request.client_secret == persisted_client_secret):
                             return True
                         else:
-                            raise BadRequestException(message='Invalid client information')
+                            raise BadRequest(message='Invalid client information')
                     else:
-                        raise BadRequestException(message='Invalid client information')
+                        raise BadRequest(message='Invalid client information')
                 else:
                     raise UnAuthorized(message='Invalid Auth Code or Client Id combination')
         else:
@@ -176,15 +176,15 @@ class OAuthService(object):
                         persisted_client_id = persisted_client_info[1].decode('utf-8')
                         if (persisted_client_id != refresh_token_request.client_id
                                 and persisted_client_secret != refresh_token_request.client_secret):
-                            raise BadRequestException(f'Invalid Client ID and Refresh Token Mapping')
+                            raise BadRequest(f'Invalid Client ID and Refresh Token Mapping')
                         else:
                             return True, persisted_access_token
                     else:
-                        raise BadRequestException(f'Invalid Client ID and Refresh Token Mapping')
+                        raise BadRequest(f'Invalid Client ID and Refresh Token Mapping')
                 else:
                     logger.error(
                         f'No mapping exists between: Client Id: {refresh_token_request.client_id}, refresh Token: {refresh_token_request.refresh_token}')
-                    raise BadRequestException(f'Invalid Refresh token  ')
+                    raise BadRequest(f'Invalid Refresh token  ')
             else:
                 logger.error(f'Refresh Token doesn\'t exists')
                 raise UnAuthorized(f'Invalid Refresh token  ')

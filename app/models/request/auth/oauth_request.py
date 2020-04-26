@@ -2,7 +2,7 @@ import functools
 
 from marshmallow import fields, Schema, RAISE, post_load, validates
 
-from app.exception_handlers import BadRequestException
+from app.exception_handlers import BadRequest
 
 
 class GrantAuthRequest(Schema):
@@ -32,7 +32,7 @@ class AuthTokenRequest(Schema):
     @validates("grant_type")
     def validate_grant_type(self, grant_type):
         if not grant_type and grant_type != 'authorization_code':
-            raise BadRequestException(message={'message': 'Invalid Grant Type'})
+            raise BadRequest(message={'message': 'Invalid Grant Type'})
 
     @post_load(pass_original=True)
     def oauth_session_post_load(self, data, **kwargs):
