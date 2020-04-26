@@ -1,9 +1,10 @@
 from elasticsearch import Elasticsearch
 
 from app import logger
+from typing import List
 from app.dao.elastic_entity_dao import ElasticEntityDao
 from app.dao.es_query_templates import search_contact_number_template, search_email_template
-from app.dao.es_query_templates import search_email_contact_number_template
+from app.dao.es_query_templates import search_email_and_contact_number_template, search_email_or_contact_number_template
 from app.elastic_entities.client import ClientEntity
 
 
@@ -48,28 +49,27 @@ class EsClientDaoImp(ElasticEntityDao):
 
         return self.__parse_response__(response)
 
-    def search_by_email_contact_number(self, email, contact_number):
+    def search_by_email_and_contact_number(self, email, contact_number):
         """
-                    Search the document by Email in Elasticsearch. If exists - returns document else 0
-                    :param contact_number:
-                    :param email:
-                    :return:source
-                """
+         Search the document by Email and Contact Number in Elasticsearch. If exists - returns document else 0
+           :param contact_number:
+           :param email:
+           :return:source
+        """
 
         response = self.es_connection.search(index=ClientEntity.Index.name,
-                                             body=search_email_contact_number_template(email=email,
-                                                                                       contact_number=contact_number),
+                                             body=search_email_and_contact_number_template(email=email,
+                                                                                           contact_number=contact_number),
                                              params=self.PARAMS)
 
         return self.__parse_response__(response)
 
     def search_by_contact_number(self, contact_number):
         """
-                    Search the document by Email in Elasticsearch. If exists - returns document else 0
-                    :param contact_number:
-                    :param email:
-                    :return:source
-                """
+          Search the document by Contact Number in Elasticsearch. If exists - returns document else 0
+          :param contact_number:
+          :return:source
+        """
 
         response = self.es_connection.search(index=ClientEntity.Index.name,
                                              body=search_contact_number_template(contact_number=contact_number),
@@ -77,10 +77,27 @@ class EsClientDaoImp(ElasticEntityDao):
 
         return self.__parse_response__(response)
 
+    def search_by_email_or_contact_number(self, email, contact_number):
+        """
+            Search the document by Email or Contact Number in Elasticsearch. If exists - returns document else 0
+            :param contact_number:
+            :param email:
+            :return:source
+        """
+        response = self.es_connection.search(index=ClientEntity.Index.name,
+                                             body=search_email_or_contact_number_template(email=email,
+                                                                                          contact_number=contact_number),
+                                             params=self.PARAMS)
+
+        return self.__parse_response__(response)
+
     def __parse_response__(self, response):
-        if response.get('hits').get('total').get('value') > 0:
-            hit = response.get('hits').get('hits')[0]
-            logger.info(f'ES Response: {hit.get("_source")}')
-            return hit.get("_source")
+        hit_count = response.get('hits').get('total').get('value')
+        if hit_count > 0:
+            response_list = []
+            hits = response.get('hits').get('hits')
+            for hit in hits:
+                response_list.append(hit.get('_source'))
+            return response_list
         else:
             return 0

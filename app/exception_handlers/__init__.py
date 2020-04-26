@@ -19,6 +19,11 @@ class BadRequest(BaseUserException):
         super(BadRequest, self).__init__(message, 400, headers)
 
 
+class RequestConflict(BaseUserException):
+    def __init__(self, message, headers=None):
+        super(RequestConflict, self).__init__(message, 409, headers)
+
+
 class UnAuthorized(BaseUserException):
     def __init__(self, message: str, headers=None):
         super(UnAuthorized, self).__init__(message, 401, headers)

@@ -1,4 +1,4 @@
-import logging
+from app import logger
 
 from elasticsearch import Elasticsearch
 from redis import Redis
@@ -8,8 +8,7 @@ from app.client.redis_client import RedisClient
 from app.config.config import ConfigType
 from app.dao.es_client_dao_impl import EsClientDaoImp
 from app.elastic_entities.client import ClientEntity
-
-logger = logging.getLogger('gunicorn.error')
+from app.exception_handlers import RequestConflict
 
 
 class ClientService(object):
@@ -27,22 +26,26 @@ class ClientService(object):
         self._config_object = config_object
         self.client_dao = EsClientDaoImp(self._elastic_connection)
 
-    def search_client(self, email: str, contact_number: str):
+    def search(self, email: str, contact_number: str):
 
         if email and contact_number:
-            return self.client_dao.search_by_email_contact_number(email=email, contact_number=contact_number)
+            return self.client_dao.search_by_email_and_contact_number(email=email, contact_number=contact_number)
         elif email:
             return self.client_dao.search_by_email(email)
         else:
             return self.client_dao.search_by_contact_number(contact_number=contact_number)
 
-    def update_client(self):
+    def update(self):
         pass
 
-    def register_client(self, client_entity: ClientEntity):
-        logger.info(f'Valid request: {client_entity}')
-        doc_status, doc_meta = self.client_dao.save(client_entity)
+    def register(self, client_entity: ClientEntity):
 
-        logger.info(f'Persisted - doc_status: {doc_status} and doc_meta: {doc_meta}')
+        response_list = self.client_dao.search_by_email_or_contact_number(email=client_entity.email,
+                                                                          contact_number=client_entity.contact_number)
 
-        return doc_status, doc_meta
+        if response_list and len(response_list) > 0:
+            raise RequestConflict(message={'message': 'Client already exists with similar email or contact number'})
+        else:
+            doc_status, doc_meta = self.client_dao.save(client_entity)
+            logger.info(f'Persisted - doc_status: {doc_status} and doc_meta: {doc_meta}')
+            return doc_status, doc_meta
