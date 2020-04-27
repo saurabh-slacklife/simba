@@ -46,12 +46,12 @@ def authorize_client():
     oauth_grant_code_request.client_id = client_id
     oauth_grant_code_request.state = state
 
-    oauth_service.bind_user_client(user_id, client_id, scopes_set)
-
     auth_code, redirect_uri = oauth_service.create_oauth_grant_code_and_redirect_uri(
         oauth_grant_code_request=oauth_grant_code_request)
 
     uri = f'{redirect_uri}?code={auth_code}&state={oauth_grant_code_request.state}'
+
+    oauth_service.bind_user_client(user_id, client_id)
 
     return redirect(uri, 302)
 

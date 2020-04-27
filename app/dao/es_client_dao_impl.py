@@ -3,8 +3,8 @@ from elasticsearch import Elasticsearch
 from app import logger
 from typing import List
 from app.dao.elastic_entity_dao import ElasticEntityDao
-from app.dao.es_query_templates import search_contact_number_template, search_email_template, search_id_template
-from app.dao.es_query_templates import search_email_and_contact_number_template, search_email_or_contact_number_template
+from app.dao.es_query_templates import search_client_by_contact_number_template, search_client_by_email_template, search_client_by_id_template
+from app.dao.es_query_templates import search_client_by_email_and_contact_number_template, search_client_by_email_or_contact_number_template
 from app.elastic_entities.client import ClientEntity
 
 
@@ -44,7 +44,7 @@ class EsClientDaoImp(ElasticEntityDao):
         """
 
         response = self.es_connection.search(index=ClientEntity.Index.name,
-                                             body=search_id_template(client_id=client_id),
+                                             body=search_client_by_id_template(client_id=client_id),
                                              params=self.PARAMS)
 
         return self.__parse_response__(response)
@@ -58,7 +58,7 @@ class EsClientDaoImp(ElasticEntityDao):
         """
 
         response = self.es_connection.search(index=ClientEntity.Index.name,
-                                             body=search_email_template(email=email),
+                                             body=search_client_by_email_template(email=email),
                                              params=self.PARAMS)
 
         return self.__parse_response__(response)
@@ -72,8 +72,8 @@ class EsClientDaoImp(ElasticEntityDao):
         """
 
         response = self.es_connection.search(index=ClientEntity.Index.name,
-                                             body=search_email_and_contact_number_template(email=email,
-                                                                                           contact_number=contact_number),
+                                             body=search_client_by_email_and_contact_number_template(email=email,
+                                                                                                     contact_number=contact_number),
                                              params=self.PARAMS)
 
         return self.__parse_response__(response)
@@ -86,7 +86,7 @@ class EsClientDaoImp(ElasticEntityDao):
         """
 
         response = self.es_connection.search(index=ClientEntity.Index.name,
-                                             body=search_contact_number_template(contact_number=contact_number),
+                                             body=search_client_by_contact_number_template(contact_number=contact_number),
                                              params=self.PARAMS)
 
         return self.__parse_response__(response)
@@ -99,8 +99,8 @@ class EsClientDaoImp(ElasticEntityDao):
             :return:source
         """
         response = self.es_connection.search(index=ClientEntity.Index.name,
-                                             body=search_email_or_contact_number_template(email=email,
-                                                                                          contact_number=contact_number),
+                                             body=search_client_by_email_or_contact_number_template(email=email,
+                                                                                                    contact_number=contact_number),
                                              params=self.PARAMS)
 
         return self.__parse_response__(response)

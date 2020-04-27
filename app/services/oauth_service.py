@@ -7,9 +7,9 @@ from app.client.redis_client import RedisClient
 from app.config.config import ConfigType
 from app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
 from app.dao.auth_token_dao import fetch_refresh_token_client_info, revoke_access_refresh_token
-from app.dao.auth_token_dao import redis_get_client_info
 from app.dao.es_client_dao_impl import EsClientDaoImp
-from app.exception_handlers import OperationNotAllowedException, BadRequest, UnAuthorized
+from app.dao.user_dao import UserDaoImp
+from app.exception_handlers import RequestForbidden, BadRequest, UnAuthorized
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponse
 
@@ -22,6 +22,7 @@ class OAuthService(object):
         self._redis_client = redis_client
         self._config_object = config_object
         self.client_dao = EsClientDaoImp(elastic_client.elastic_connection)
+        self.user_dao = UserDaoImp(elastic_client.elastic_connection)
 
     def init_service(self, redis_client: RedisClient,
                      elastic_client: ElasticSearchClient,
@@ -29,6 +30,7 @@ class OAuthService(object):
         self._redis_connection = redis_client.redis_connection
         self._config_object = config_object
         self.client_dao = EsClientDaoImp(elastic_client.elastic_connection)
+        self.user_dao = UserDaoImp(elastic_client.elastic_connection)
 
     def __generate_hash__(self, key: str, value: str) -> str:
         current_time = datetime.utcnow()
@@ -37,13 +39,20 @@ class OAuthService(object):
 
     # Auth Code flow
 
-    def bind_user_client(self, user_id: str, client_id: str, request_scope: set):
-        client_response = self.client_dao.search_by_id(client_id=client_id)
-        persisted_scope = set(scope for scope in client_response.get('scopes'))
-        is_req_scope_present = request_scope.difference(persisted_scope)
+    def bind_user_client(self, user_id: str, client_id: str):
+        # TODO Handle below. Search, save
+        self.user_dao.update()
 
-        if is_req_scope_present:
-            raise BadRequest(message=f'Invalid request Scope: {request_scope}')
+    def validate_scopes(self, client_id: str, request_scope: set):
+        client_response = self.client_dao.search_by_id(client_id=client_id)
+        if not client_response:
+            raise RequestForbidden(message='Invalid Client Id')
+        else:
+            persisted_scope = set(scope for scope in client_response.get('scopes'))
+            is_req_scope_present = request_scope.difference(persisted_scope)
+
+            if is_req_scope_present:
+                raise BadRequest(message=f'Invalid request Scope: {request_scope}')
 
     def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: GrantAuthRequest):
         return self._get_auth_code_and_redirect_uri(oauth_grant_code_request)
@@ -51,6 +60,8 @@ class OAuthService(object):
     def _get_auth_code_and_redirect_uri(self, oauth_grant_code_request: GrantAuthRequest):
         client_id = oauth_grant_code_request.client_id
         input_scopes = oauth_grant_code_request.scope
+
+        self.validate_scopes(client_id=client_id, request_scope=input_scopes)
 
         redirect_uri = self._get_redirect_uri(client_id, input_scopes)
 

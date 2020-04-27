@@ -34,9 +34,9 @@ class InvalidRequest(BaseUserException):
         super(InvalidRequest, self).__init__(message, 400, headers)
 
 
-class OperationNotAllowedException(BaseUserException):
+class RequestForbidden(BaseUserException):
     def __init__(self, message, headers=None):
-        super(OperationNotAllowedException, self).__init__(message, 403, headers)
+        super(RequestForbidden, self).__init__(message, 403, headers)
 
 
 class ResourceNotFound(BaseUserException):
