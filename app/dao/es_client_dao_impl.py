@@ -3,7 +3,7 @@ from elasticsearch import Elasticsearch
 from app import logger
 from typing import List
 from app.dao.elastic_entity_dao import ElasticEntityDao
-from app.dao.es_query_templates import search_contact_number_template, search_email_template
+from app.dao.es_query_templates import search_contact_number_template, search_email_template, search_id_template
 from app.dao.es_query_templates import search_email_and_contact_number_template, search_email_or_contact_number_template
 from app.elastic_entities.client import ClientEntity
 
@@ -34,6 +34,20 @@ class EsClientDaoImp(ElasticEntityDao):
             :return: doc_status, doc_meta
         """
         return super(EsClientDaoImp, self).update(es_connection=self.es_connection, document=client_document)
+
+    def search_by_id(self, client_id: str):
+
+        """
+            Search the document by Client ID in Elasticsearch. If exists - returns document else 0
+            :param client_id:
+            :return:source
+        """
+
+        response = self.es_connection.search(index=ClientEntity.Index.name,
+                                             body=search_id_template(client_id=client_id),
+                                             params=self.PARAMS)
+
+        return self.__parse_response__(response)
 
     def search_by_email(self, email):
 

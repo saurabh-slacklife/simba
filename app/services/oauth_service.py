@@ -1,67 +1,75 @@
-import logging
 from datetime import datetime
-from hashlib import sha256
+from hashlib import md5
 
-from redis import Redis
-
+from app import logger
+from app.client.elasticsearch_client import ElasticSearchClient
 from app.client.redis_client import RedisClient
 from app.config.config import ConfigType
 from app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
 from app.dao.auth_token_dao import fetch_refresh_token_client_info, revoke_access_refresh_token
 from app.dao.auth_token_dao import redis_get_client_info
+from app.dao.es_client_dao_impl import EsClientDaoImp
 from app.exception_handlers import OperationNotAllowedException, BadRequest, UnAuthorized
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponse
-from app import logger
 
 
 class OAuthService(object):
-    def __init__(self, redis_client: RedisClient = None, config_object: ConfigType = None):
-        self._redis_connection: Redis = None
+    def __init__(self, redis_client: RedisClient = None,
+                 elastic_client: ElasticSearchClient = None,
+                 config_object: ConfigType = None):
+        self._redis_connection = redis_client
         self._redis_client = redis_client
         self._config_object = config_object
+        self.client_dao = EsClientDaoImp(elastic_client.elastic_connection)
 
-    def init_service(self, redis_client: RedisClient, config_object: ConfigType):
+    def init_service(self, redis_client: RedisClient,
+                     elastic_client: ElasticSearchClient,
+                     config_object: ConfigType):
         self._redis_connection = redis_client.redis_connection
         self._config_object = config_object
+        self.client_dao = EsClientDaoImp(elastic_client.elastic_connection)
 
-    def __generate_sha__(self, key: str, value: str) -> str:
+    def __generate_hash__(self, key: str, value: str) -> str:
         current_time = datetime.utcnow()
         hash_value = "%s:%s:%s" % (value, current_time.isoformat(), key)
-        return sha256(hash_value.encode('utf-8')).hexdigest()
+        return md5(hash_value.encode('utf-8')).hexdigest()
 
     # Auth Code flow
 
+    def bind_user_client(self, user_id: str, client_id: str, request_scope: set):
+        client_response = self.client_dao.search_by_id(client_id=client_id)
+        persisted_scope = set(scope for scope in client_response.get('scopes'))
+        is_req_scope_present = request_scope.difference(persisted_scope)
+
+        if is_req_scope_present:
+            raise BadRequest(message=f'Invalid request Scope: {request_scope}')
+
     def create_oauth_grant_code_and_redirect_uri(self, oauth_grant_code_request: GrantAuthRequest):
-        return self.__get_auth_code_and_redirect_uri__(oauth_grant_code_request)
+        return self._get_auth_code_and_redirect_uri(oauth_grant_code_request)
 
-    def __get_auth_code_and_redirect_uri__(self, oauth_grant_code_request: GrantAuthRequest):
+    def _get_auth_code_and_redirect_uri(self, oauth_grant_code_request: GrantAuthRequest):
         client_id = oauth_grant_code_request.client_id
-        input_scope = oauth_grant_code_request.scope
+        input_scopes = oauth_grant_code_request.scope
 
-        scope_set, redirect_uri = self.__get_scope_redirect_uri__(client_id, input_scope)
+        redirect_uri = self._get_redirect_uri(client_id, input_scopes)
 
-        for scope in input_scope:
-            if scope not in scope_set:
-                logger.error(f'Invalid input scope: {input_scope} request for Client: {client_id}')
-                raise OperationNotAllowedException(message='Invalid Scopes')
-
-        oauth_code = self.__generate_sha__(client_id, scope_set)
-        self.__persist_code__(code=oauth_code, client_id=client_id)
+        oauth_code = self.__generate_hash__(client_id, '-'.join(input_scopes))
+        self._persist_code(code=oauth_code, client_id=client_id)
         logger.info(f'Auth_Code: {oauth_code} and redirect_uri: {redirect_uri}')
         return oauth_code, redirect_uri
 
-    def __get_scope_redirect_uri__(self, client_id: str, scopes: str) -> set:
-        response_list = redis_get_client_info(self._redis_connection, client_id, self._config_object.CLIENT_DB,
-                                              'scope', 'redirect_uri')
-        logger.info(f'response_list size: {len(response_list)} response: {response_list}')
-        if len(response_list) == 2:
-            redis_response = response_list[1]
-            return set(x for x in redis_response[0].decode('utf-8').split(',')), redis_response[1].decode('utf-8')
-        else:
-            raise OperationNotAllowedException(message='Invalid Request')
+    def _get_redirect_uri(self, client_id: str, request_scope: str) -> set:
 
-    def __persist_code__(self, code: str, client_id: str):
+        client_response = self.client_dao.search_by_id(client_id=client_id)
+        persisted_scope = set(scope for scope in client_response.get('scopes'))
+        is_req_scope_present = request_scope.difference(persisted_scope)
+
+        if is_req_scope_present:
+            raise BadRequest(message=f'Invalid request Scope: {request_scope}')
+        return client_response.get('redirect_url')
+
+    def _persist_code(self, code: str, client_id: str):
         persist_auth_code(redis_connection=self._redis_connection, name=code, value=client_id, expire=600,
                           db=self._config_object.AUTH_CODE_DB)
 
@@ -121,10 +129,10 @@ class OAuthService(object):
         refresh_str = "%s:%s" % (token_str, "refresh")
 
         # Step 1 Generate Refresh Token
-        refresh_token = self.__generate_sha__(key='refresh', value=refresh_str)
+        refresh_token = self.__generate_hash__(key='refresh', value=refresh_str)
 
         # Step 2 Generate Access Token
-        access_token = self.__generate_sha__(key='access', value=token_str)
+        access_token = self.__generate_hash__(key='access', value=token_str)
 
         return access_token, refresh_token
 

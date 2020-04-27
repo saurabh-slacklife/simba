@@ -14,10 +14,10 @@ from hashlib import sha256, md5
 
 class ClientService(object):
     def __init__(self, redis_connection: Redis = None,
-                 elastic_connection: Elasticsearch = None,
+                 elastic_client: ElasticSearchClient = None,
                  config_object=None):
         self._redis_connection = redis_connection
-        self._elastic_connection = elastic_connection
+        self._elastic_connection: Elasticsearch = elastic_client.elastic_connection
         self._config_object = config_object
         self.client_dao: EsClientDaoImp = None
 

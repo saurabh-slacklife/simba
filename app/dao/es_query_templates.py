@@ -1,3 +1,7 @@
+def search_id_template(client_id: str):
+    return {"query": {"match": {"client_id": {"query": client_id, "operator": "and"}}}}
+
+
 def search_email_template(email: str):
     return {"query": {"match": {"email": {"query": email, "operator": "and"}}}}
 

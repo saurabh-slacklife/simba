@@ -12,30 +12,41 @@ from app.extensions.dependency_extensions import http_client
 oauth_route = Blueprint("Oauth", __name__)
 
 
-@oauth_route.route('/access', methods=['GET'])
+@oauth_route.route('/authorize', methods=['GET'])
 def authorize_client():
     req_args = request.args
 
-    if not req_args.get('response_type') and req_args.get('response_type') != 'code':
+    response_type = req_args.get('response_type')
+    scopes = req_args.get('scopes')
+    client_id = req_args.get('client_id')
+    state = req_args.get('state')
+
+    if not response_type and response_type != 'code':
         raise BadRequest(message={'message': 'Invalid response_type'})
-    if not req_args.get('scope'):
-        raise BadRequest(message={'message': 'Invalid scope'})
-    if not req_args.get('client_id'):
+    if not scope:
+        raise BadRequest(message={'message': 'Invalid scopes'})
+    if not client_id:
         raise BadRequest(message={'message': 'Invalid client_id'})
-    if not req_args.get('state'):
+    if not state:
         raise BadRequest(message={'message': 'Invalid state'})
-    if not request.headers.get('Authorization'):
+
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header:
         raise BadRequest(message={'message': 'Authorization header'})
 
-    user_id = get_user_id(request.headers.get('Authorization'))
+    user_id = get_user_id(auth_header)
     if not user_id and user_id == 0:
         return redirect(Urls.SESSION, 302)
 
     oauth_grant_code_request = GrantAuthRequest()
-    oauth_grant_code_request.grant_type = req_args.get('response_type')
-    oauth_grant_code_request.scope = set(x for x in req_args.get('scope').split(','))
-    oauth_grant_code_request.client_id = req_args.get('client_id')
-    oauth_grant_code_request.state = req_args.get('state')
+    oauth_grant_code_request.grant_type = response_type
+    scopes_set = set(x for x in scopes.split(','))
+    oauth_grant_code_request.scope = scopes_set
+    oauth_grant_code_request.client_id = client_id
+    oauth_grant_code_request.state = state
+
+    oauth_service.bind_user_client(user_id, client_id, scopes_set)
 
     auth_code, redirect_uri = oauth_service.create_oauth_grant_code_and_redirect_uri(
         oauth_grant_code_request=oauth_grant_code_request)
