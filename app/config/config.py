@@ -25,6 +25,7 @@ class BaseConfig:
     ELASTICSEARCH_PER_REQUEST_TIMEOUT = 5
     ELASTICSEARCH_SNIFFER_TIMEOUT = 60
     ELASTICSEARCH_TIMEOUT = 10
+    AUTHENTICATION_HOST = 'https://localhost:9000/'
 
 
 class ProdConfig(BaseConfig):

@@ -6,6 +6,7 @@ from app.exception_handlers import BadRequest, BaseUserException
 from app.extensions.dependency_extensions import oauth_service
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
+from app.routes import logged_in
 
 oauth_route = Blueprint("Oauth", __name__)
 
@@ -70,18 +71,31 @@ def token_refresh_request() -> Response:
         return AuthTokenResponseEncoder().encode(oauth_token_response)
 
 
-# @oauth_route.before_request
+@oauth_route.route('/test', methods=['GET'])
+@logged_in
+def authorize_check():
+    return {"hello": "success"}
+
+
+@oauth_route.before_request
 def validate_header():
     req_content_type = request.content_type
     if not req_content_type:
         logger.error(f'Invalid Content Type: {request.content_type}')
         raise BadRequest(message={'message': 'Invalid Content Type'})
-    elif (req_content_type == 'application/x-www-form-urlencoded;charset=utf-8'
-          or req_content_type == 'application/x-www-form-urlencoded'):
+    elif (
+            req_content_type == 'application/x-www-form-urlencoded;charset=utf-8'
+            or req_content_type == 'application/x-www-form-urlencoded') \
+            or req_content_type == 'application/json;charset=utf-8':
         pass
     else:
         logger.error(f'Invalid Content Type: {request.content_type}')
         raise BadRequest(message={'message': f'Invalid Content Type: {request.content_type}'})
+
+    user_agent = request.headers.get('User-Agent')
+    if not user_agent:
+        logger.error(f'Invalid User Agent header')
+        raise BadRequest(message={'message': 'Invalid User Agent header'})
 
 
 @oauth_route.after_request

@@ -43,6 +43,7 @@ def find_client() -> Response:
         return jsonify(response)
 
 
+# TODO Need to implement ES logic
 @client_route.route('/', methods=['POST'])
 def update_client() -> Response:
     return 'update'
@@ -54,7 +55,7 @@ def __validate_document_request__(req_data):
         invalid_request_dict['client_name'] = None
     if req_data.get('email') is None:
         invalid_request_dict['email'] = None
-    if req_data.get('website') is None:
+    if req_data.get('website_url') is None:
         invalid_request_dict['web_url'] = None
     if req_data.get('contact_number') is None:
         invalid_request_dict['contact_number'] = None
@@ -64,7 +65,8 @@ def __validate_document_request__(req_data):
         raise BadRequest(message=f'''{'ErrorMessage': 'Invalid request {invalid_request_dict}'}''')
 
     client_entity = ClientEntity(client_name=req_data.get('client_name'), email=req_data.get('email'),
-                                 website=req_data.get('website'), contact_number=req_data.get('contact_number'),
+                                 website=req_data.get('website_url'), contact_number=req_data.get('contact_number'),
+                                 scopes=req_data.get('scopes'), roles=req_data.get('roles')
                                  )
     return client_entity
 

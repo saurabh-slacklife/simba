@@ -2,13 +2,14 @@ import os
 from flask import Flask
 from app import logger
 from app.client.redis_client import RedisClient
+from app.client.http_request_client import HttpClient
 from app.client.elasticsearch_client import ElasticSearchClient
 from app.config.config import ConfigType
 from app.routes.user import user_bp
 from app.routes.oauth_routes.oauth_routes import oauth_route
 from app.routes.client_route import client_route
 
-from app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service, client_service
+from app.extensions.dependency_extensions import user_service, oauth_service, redis_health_service, client_service, http_client
 
 
 class ManageApp(object):
@@ -23,6 +24,7 @@ class ManageApp(object):
 
     def initialize_app(self):
         redis_client = RedisClient(config=self._simba_app.config)
+        http_client.init_app(config=self._simba_app.config)
         elastic_client = ElasticSearchClient(config=self._simba_app.config)
         self.__register_services__(redis_client=redis_client, elastic_client=elastic_client)
 

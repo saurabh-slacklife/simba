@@ -5,12 +5,13 @@ class ClientEntity(Document):
     client_name = Text(fields={'keyword': Keyword()}, required=True)
     client_id = Keyword(required=True)
     email = Keyword(required=True)
-    website = Text(required=True)
+    website_url = Text(required=True)
     contact_number = Integer(fields={'type': Keyword()}, required=True)
     client_token = Text(required=True)
     client_secret = Text(required=True)
     roles = Text(required=False)
     scopes = Text(required=False)
+    redirect_url = Text(required=True)
 
     class Index:
         name = 'client-test'
