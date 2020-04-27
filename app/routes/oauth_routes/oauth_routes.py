@@ -2,11 +2,12 @@ from app import logger
 
 from flask import Blueprint, request, redirect, Response
 
+from app.common import Urls
 from app.exception_handlers import BadRequest, BaseUserException
 from app.extensions.dependency_extensions import oauth_service
 from app.models.request.auth.oauth_request import GrantAuthRequest, AuthTokenRequest, RefreshTokenRequest
 from app.models.response.auth_token.oauth_response import AuthTokenResponseEncoder
-from app.routes import logged_in
+from app.extensions.dependency_extensions import http_client
 
 oauth_route = Blueprint("Oauth", __name__)
 
@@ -22,7 +23,13 @@ def authorize_client():
     if not req_args.get('client_id'):
         raise BadRequest(message={'message': 'Invalid client_id'})
     if not req_args.get('state'):
-        raise BadRequest(message={'message': 'state'})
+        raise BadRequest(message={'message': 'Invalid state'})
+    if not request.headers.get('Authorization'):
+        raise BadRequest(message={'message': 'Authorization header'})
+
+    user_id = get_user_id(request.headers.get('Authorization'))
+    if not user_id and user_id == 0:
+        return redirect(Urls.SESSION, 302)
 
     oauth_grant_code_request = GrantAuthRequest()
     oauth_grant_code_request.grant_type = req_args.get('response_type')
@@ -71,10 +78,32 @@ def token_refresh_request() -> Response:
         return AuthTokenResponseEncoder().encode(oauth_token_response)
 
 
-@oauth_route.route('/test', methods=['GET'])
-@logged_in
-def authorize_check():
-    return {"hello": "success"}
+def get_user_id(auth_header: str):
+    if auth_header:
+        headers = {}
+        headers.setdefault('USER-AGENT', 'SIMBA APP')
+        headers.setdefault('Content-Type', 'application/json')
+        headers.setdefault('Accept-Type', 'application/json')
+        headers.setdefault('Authorization', auth_header)
+        user_id = call_auth(headers)
+        if user_id:
+            return user_id
+        else:
+            logger.error(f'User not logged-in, redirect to Login page')
+            return 0
+    else:
+        logger.error(f'User not logged-in, redirect to Login page')
+        return 0
+
+
+def call_auth(headers):
+    response = http_client.get_connection.request(method='GET', url=Urls.SESSION, headers=headers)
+    if response:
+        response_json = response.json
+        user_id = response_json.get('user_id', 'sgergewg')
+        return user_id
+    else:
+        return 0
 
 
 @oauth_route.before_request
