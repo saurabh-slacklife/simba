@@ -5,7 +5,7 @@ from app import logger
 from app.client.elasticsearch_client import ElasticSearchClient
 from app.client.redis_client import RedisClient
 from app.config.config import ConfigType
-from app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token
+from app.dao.auth_token_dao import fetch_auth_code_client_info, persist_auth_code, persist_token, redis_sadd_pipeline
 from app.dao.auth_token_dao import fetch_refresh_token_client_info, revoke_access_refresh_token
 from app.dao.es_client_dao_impl import EsClientDaoImp
 from app.dao.user_dao import UserDaoImp
@@ -38,10 +38,6 @@ class OAuthService(object):
         return md5(hash_value.encode('utf-8')).hexdigest()
 
     # Auth Code flow
-
-    def bind_user_client(self, user_id: str, client_id: str):
-        # TODO Handle below. Search, save
-        self.user_dao.update()
 
     def validate_scopes(self, client_id: str, request_scope: set):
         client_response = self.client_dao.search_by_id(client_id=client_id)
@@ -83,6 +79,9 @@ class OAuthService(object):
     def _persist_code(self, code: str, client_id: str):
         persist_auth_code(redis_connection=self._redis_connection, name=code, value=client_id, expire=600,
                           db=self._config_object.AUTH_CODE_DB)
+
+    def bind_user_client(self, user_id: str, client_id: str):
+        redis_sadd_pipeline(user_id, self._config_object.USER_DB, client_id)
 
     # Access Token Flow
 
