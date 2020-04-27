@@ -1,4 +1,4 @@
-# [WIP] Simba - A Flask OAuth 2.0 simple implementation backed by Redis and Elasticsearch
+# [WIP] Simba - A Flask OAuth 2.0 minimalist implementation backed by Redis and Elasticsearch
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg?style=plastic&color=brightgreen)](https://www.python.org/) [![Version 3.8.2](https://img.shields.io/badge/python-3.8.2-blue.svg?style=plastic&color=brightgreen)](https://www.python.org/downloads/release/python-382/)
 
@@ -50,7 +50,7 @@ docker build . -f container/Dockerfile-dev -t simba:v1
 # Below command runs the docker image on port 5000.
 # Sets the SERVICE_ENV environment variable in Docker container.
 # The value "dev" is used to take Development configuration.
-docker run -p 5000:5000 --env-file ./env.dev PORT=5000 ripple.io:v1
+docker run -p 5000:5000 --env-file ./env.dev PORT=5000 simba.io:v1
 
 ```
 
@@ -93,13 +93,13 @@ tail -f /var/log/simba/application.log
 
 ### Docker
 ```shell script
-# Find the docker CONTAINER_ID based on the Image tag: ripple.io:v1
+# Find the docker CONTAINER_ID based on the Image tag: simba.io:v1
 docker ps | grep "simba:v1" | cut -d" " -f1
 
 # Access the docker shell
 docker exec -it <CONTAINER_ID> /bin/sh
 
-# Navigate to path /var/log/ripple
+# Navigate to path /var/log/simba
 cd /var/log/simba
 
 # Gunicorn access logs path
