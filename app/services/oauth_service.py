@@ -16,13 +16,12 @@ from app.models.response.auth_token.oauth_response import AuthTokenResponse
 
 class OAuthService(object):
     def __init__(self, redis_client: RedisClient = None,
-                 elastic_client: ElasticSearchClient = None,
                  config_object: ConfigType = None):
         self._redis_connection = redis_client
         self._redis_client = redis_client
         self._config_object = config_object
-        self.client_dao = EsClientDaoImp(elastic_client.elastic_connection)
-        self.user_dao = UserDaoImp(elastic_client.elastic_connection)
+        self.client_dao = None
+        self.user_dao = None
 
     def init_service(self, redis_client: RedisClient,
                      elastic_client: ElasticSearchClient,
