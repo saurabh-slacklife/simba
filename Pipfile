@@ -13,7 +13,7 @@ redis= "==3.4.1"
 marshmallow= "==3.5.1"
 elasticsearch= "==7.6.0"
 elasticsearch-dsl= "==7.1.0"
-urllib3= "==1.25.9"
+urllib3= "==1.26.5"
 
 [requires]
 python_version = "3.8.2"
